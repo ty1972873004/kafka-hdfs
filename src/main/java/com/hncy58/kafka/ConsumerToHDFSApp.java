@@ -30,6 +30,8 @@ import com.hncy58.heartbeat.HeartRunnable;
 
 public class ConsumerToHDFSApp {
 
+	private static final Logger log = LoggerFactory.getLogger(ConsumerToHDFSApp.class);
+
 	private static int FETCH_MILISECONDS = 1000;
 	private static int SLEEP_SECONDS = 5;
 	private static int MIN_BATCH_SIZE = 5000;
@@ -41,23 +43,21 @@ public class ConsumerToHDFSApp {
 
 	private static String localFileNamePrefix = "unHadledData";
 
-	private static String agentSvrName = "testname";
-	private static String agentSvrGroup = "testgrp";
+	private static String agentSvrName = "KafkaToHDFS";
+	private static String agentSvrGroup = "KafkaToHDFSGroup";
 	private static int agentSvrType = 2;
 	private static int agentSourceType = 2;
 	private static int agentDestType = 2;
 
-	private static String kafkaServers = "localhost:9092";
+	private static String kafkaServers = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
 	private static String kafkaGroupId = ConsumerToHDFSApp.class.getSimpleName();
 	private static List<String> subscribeToipcs = new ArrayList<>();
 
-	private static boolean run = false;
 	private static Configuration hadoopConf = new Configuration(true);
+	private static String HDFS_PREFIX_PATH = "hdfs://hncy58/tmp/";
 	private static KafkaConsumer<String, String> consumer;
 
-	private static final Logger log = LoggerFactory.getLogger(ConsumerToHDFSApp.class);
-	private static String HDFS_PREFIX_PATH = "hdfs://node01:8020/tmp/";
-
+	private static boolean run = false;
 	private static boolean shutdown_singal = false;
 	public static boolean shutdown = false;
 	private static Thread heartThread;
@@ -72,7 +72,7 @@ public class ConsumerToHDFSApp {
 	}
 
 	public static void main(String[] args) {
-
+		
 		ConsumerToHDFSApp app = new ConsumerToHDFSApp();
 
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
@@ -117,9 +117,8 @@ public class ConsumerToHDFSApp {
 							heartRunnable.setRun(false);
 							heartRunnable.setSvrStatus(0);
 							heartThread.interrupt();
-
-							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
-									agentSvrType, 0, "监测到服务中断信号，退出服务！");
+							
+							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0, "监测到服务中断信号，退出服务！");
 							log.info("设置服务状态为下线：" + ret);
 							ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
 									"设置服务状态为下线：" + ret + "，shutdown_singal：" + shutdown_singal + "，ERR_HANDLED_CNT："
@@ -132,8 +131,7 @@ public class ConsumerToHDFSApp {
 						} catch (Exception e) {
 							log.error(e.getMessage(), e);
 							log.error("捕获到异常停止状态，直接退出进程！");
-							System.exit(1);
-						}
+							System.exit(1);}
 					} else {
 						ConsumerRecords<String, String> records = consumer.poll(FETCH_MILISECONDS);
 						int cnt = records.count();
@@ -219,21 +217,17 @@ public class ConsumerToHDFSApp {
 		hadoopConf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
 
 		// for test
-		hadoopConf.set("dfs.client.block.write.replace-datanode-on-failure.policy", "NEVER");
-		hadoopConf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "true");
+//		hadoopConf.set("dfs.client.block.write.replace-datanode-on-failure.policy", "NEVER");
+//		hadoopConf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "true");
 
 		Properties props = new Properties();
 
 		if (args.length > 0) {
 			kafkaServers = args[0].trim();
-		} else {
-			kafkaServers = "192.168.144.128:9092";
 		}
 
 		if (args.length > 1) {
 			kafkaGroupId = args[1].trim();
-		} else {
-			kafkaGroupId = "kafka_hdfs_group_2";
 		}
 
 		if (args.length > 2) {
@@ -242,6 +236,7 @@ public class ConsumerToHDFSApp {
 			// for test
 			subscribeToipcs.add("test-topic-1");
 			subscribeToipcs.add("test-topic-2");
+			subscribeToipcs.add("test-topic-3");
 		}
 
 		if (args.length > 3) {

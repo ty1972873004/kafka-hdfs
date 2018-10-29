@@ -3,7 +3,6 @@ package com.hncy58.kafka;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,7 +42,7 @@ public class KafkaTopicGroupOffsetsMonitor {
 	private static int agentDestType = 0;
 
 	Properties kafkaConsumerProps = new Properties();
-	private String kafkaServers = "localhost:9092";
+	private String kafkaServers = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
 	private int fetchInterval = 10;
 	boolean run = false;
 
@@ -228,12 +227,12 @@ public class KafkaTopicGroupOffsetsMonitor {
 
 						if (!insertParamsList.isEmpty()) {
 							int[] inserted = DSPoolUtil.batchUpdate(INSERT_SQL, insertParamsList);
-							log.info("insert ret:{}", Arrays.asList(inserted));
+							log.info("insert ret:{}", inserted[0]);
 						}
 
 						if (!updateParamsList.isEmpty()) {
 							int[] updated = DSPoolUtil.batchUpdate(UPDATE_SQL, updateParamsList);
-							log.info("update ret:{}", Arrays.asList(updated));
+							log.info("update ret:{}", updated[0]);
 						}
 
 					} catch (Exception e) {
@@ -273,8 +272,6 @@ public class KafkaTopicGroupOffsetsMonitor {
 		try {
 			if (args.length > 0) {
 				kafkaServers = args[0].trim();
-			} else { // for test
-				kafkaServers = "192.168.144.128:9092";
 			}
 
 			if (args.length > 1) {
