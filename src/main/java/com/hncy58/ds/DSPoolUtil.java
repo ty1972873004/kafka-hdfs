@@ -32,9 +32,9 @@ public class DSPoolUtil {
 		InputStream is = null;
 
 		try {
-			is = DSPoolUtil.class.getClassLoader().getResourceAsStream("db_dbcp.properites");
+			is = DSPoolUtil.class.getClassLoader().getResourceAsStream("db_dbcp.properties");
 			props.load(is);
-			props.forEach((k, v) -> System.out.println(k + ":" + v));
+//			props.forEach((k, v) -> System.out.println(k + ":" + v));
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {

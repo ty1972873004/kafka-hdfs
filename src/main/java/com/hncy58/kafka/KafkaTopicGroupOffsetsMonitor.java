@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import com.hncy58.ds.DSPoolUtil;
 import com.hncy58.ds.ServerStatusReportUtil;
 import com.hncy58.heartbeat.HeartRunnable;
+import com.hncy58.util.PropsUtil;
 
 /**
  * kafka主题消费组偏移量监控
@@ -35,15 +36,20 @@ public class KafkaTopicGroupOffsetsMonitor {
 
 	private static final Logger log = LoggerFactory.getLogger(KafkaTopicGroupOffsetsMonitor.class);
 
-	private static String agentSvrName = "kafkaTopicMonitor";
-	private static String agentSvrGroup = "kafkaTopicMonitorGroup";
-	private static int agentSvrType = 2;
-	private static int agentSourceType = 0;
-	private static int agentDestType = 0;
+	private static final String PROP_PREFIX = "kafka-grp-monitor";
+
+	private static String agentSvrName = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrName", "kafkaTopicMonitor");
+	private static String agentSvrGroup = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrGroup",
+			"kafka0TopicMonitorGroup");
+	private static int agentSvrType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrType", "2"));
+	private static int agentSourceType = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSourceType", "0"));
+	private static int agentDestType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentDestType", "0"));
 
 	Properties kafkaConsumerProps = new Properties();
-	private String kafkaServers = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
-	private int fetchInterval = 10;
+	private String kafkaServers = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaServers",
+			"162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092");
+	private int fetchInterval = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "fetchInterval", "10"));
 	boolean run = false;
 
 	private static boolean shutdown_singal = false;
@@ -51,7 +57,9 @@ public class KafkaTopicGroupOffsetsMonitor {
 
 	private static Thread heartThread;
 	private static HeartRunnable heartRunnable;
-	private Long ERR_HANDLED_CNT = 0L;
+	private int ERR_HANDLED_CNT = 0;
+	private static int MAX_ERR_HANDLED_CNT = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "MAX_ERR_HANDLED_CNT", "5"));
 
 	static final String QUERY_ALL_SQL = "SELECT * FROM kafka_topic_grp_cfg WHERE status = 1";
 
@@ -74,18 +82,16 @@ public class KafkaTopicGroupOffsetsMonitor {
 		System.out.println("eg:\n\t" + KafkaTopicGroupOffsetsMonitor.class.getName() + " 192.168.144.128:9092 5");
 
 		KafkaTopicGroupOffsetsMonitor monitor = new KafkaTopicGroupOffsetsMonitor();
-		
-		
+
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override
 			public void run() {
 				log.warn("开始运行进程退出钩子函数。");
-				while (!monitor.getDown()) {
+				while (!monitor.getDownSignal()) {
 					try {
 						log.error("监测到中断进程信号，设置服务为下线！");
-						monitor.setDown(true);
+						monitor.setShutdown(true);
 						Thread.sleep(2 * 1000);
-						hookSleepCnt += 1;
 					} catch (InterruptedException e) {
 						log.error(e.getMessage(), e);
 					}
@@ -96,16 +102,16 @@ public class KafkaTopicGroupOffsetsMonitor {
 		monitor.init(args);
 		monitor.doRun();
 		log.error("初始化服务失败，请检查相关配置是否正确！");
-		monitor.setDown(true);
-		Runtime.getRuntime().exit(2);
-		System.exit(2);
+		monitor.setDownSignal(true);
+		// Runtime.getRuntime().exit(2);
+		// System.exit(2);
 	}
 
 	private void doRun() {
 
 		while (run) {
 			// 如果发送了终止进程消息，则停止，并且处理掉缓存的消息
-			if (shutdown_singal || ERR_HANDLED_CNT >= 5) {
+			if (isShutdown() || ERR_HANDLED_CNT >= MAX_ERR_HANDLED_CNT) {
 				run = false;
 				try {
 					// 停止状态上报线程
@@ -113,7 +119,8 @@ public class KafkaTopicGroupOffsetsMonitor {
 					heartRunnable.setSvrStatus(0);
 					heartThread.interrupt();
 
-					boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0, "监测到服务中断信号，退出服务！");
+					boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
+							"监测到服务中断信号，退出服务！");
 					log.info("设置服务状态为下线：" + ret);
 
 					ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
@@ -121,8 +128,10 @@ public class KafkaTopicGroupOffsetsMonitor {
 									+ ERR_HANDLED_CNT);
 					log.info("上报告警结果：" + ret);
 
-					shutdown = true;
+					setShutdown(true);
+					setDownSignal(true);
 					log.error("监测到服务中断信号，退出服务！");
+					Runtime.getRuntime().exit(0);
 					System.exit(0);
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
@@ -321,11 +330,20 @@ public class KafkaTopicGroupOffsetsMonitor {
 		}
 	}
 
-	public void setDown(boolean flag) {
+	public void setDownSignal(boolean flag) {
 		shutdown_singal = flag;
 	}
 
-	public boolean getDown() {
+	public boolean getDownSignal() {
 		return shutdown_singal;
 	}
+
+	public boolean isShutdown() {
+		return shutdown;
+	}
+
+	public void setShutdown(boolean shutdown) {
+		KafkaTopicGroupOffsetsMonitor.shutdown = shutdown;
+	}
+
 }
