@@ -1,3 +1,4 @@
+package com.hncy58.kafka;
 import com.hncy58.util.PropsUtil;
 
 public class PropsTest {

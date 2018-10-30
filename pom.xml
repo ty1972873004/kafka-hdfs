@@ -12,9 +12,15 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<junit.version>4.12</junit.version>
 		<java.version>1.8</java.version>
 		<cdh.version>cdh5.14.4</cdh.version>
-		<junit.version>4.12</junit.version>
+		<hbase.version>1.2.0</hbase.version>
+		<hadoop.version>2.6.0</hadoop.version>
+		<kafka.version>1.0.1-kafka-3.1.0</kafka.version>
+		<mysql.version>5.1.38</mysql.version>
+		<commons.pool2.version>2.4.2</commons.pool2.version>
+		<commons.dbcp2.version>2.5.0</commons.dbcp2.version>
 	</properties>
 
 	<dependencies>
@@ -28,46 +34,61 @@
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.11</artifactId>
-			<version>1.0.1-kafka-3.1.0</version>
+			<version>${kafka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
-			<version>1.0.1-kafka-3.1.0</version>
+			<version>${kafka.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
-			<version>2.6.0-cdh5.14.4</version>
+			<version>${hadoop.version}-${cdh.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-hdfs</artifactId>
-			<version>2.6.0-cdh5.14.4</version>
+			<version>${hadoop.version}-${cdh.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-client</artifactId>
-			<version>2.6.0-cdh5.14.4</version>
+			<version>${hadoop.version}-${cdh.version}</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-client</artifactId>
+			<version>${hbase.version}-${cdh.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-server</artifactId>
+			<version>${hbase.version}-${cdh.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-pool2</artifactId>
-			<version>2.4.2</version>
+			<version>${commons.pool2.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-dbcp2</artifactId>
-			<version>2.5.0</version>
+			<version>${commons.dbcp2.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
-			<version>5.1.38</version>
+			<version>${mysql.version}</version>
 			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>fastjson</artifactId>
+			<version>1.2.29</version>
 		</dependency>
 
 	</dependencies>

@@ -1,3 +1,4 @@
+package com.hncy58.kafka;
 
 import java.util.Properties;
 
