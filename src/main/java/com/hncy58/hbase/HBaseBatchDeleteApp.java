@@ -17,8 +17,12 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HBaseBatchDeleteApp {
+
+	private static final Logger log = LoggerFactory.getLogger(HBaseBatchDeleteApp.class);
 
 	private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	private static final SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -37,11 +41,11 @@ public class HBaseBatchDeleteApp {
 
 	public static void main(String[] args) throws Exception {
 
-		System.out.println("Usage:\n" + HBaseBatchDeleteApp.class.getName()
+		log.info("Usage:\n" + HBaseBatchDeleteApp.class.getName()
 				+ " zkServers zkPort db table startDate startTime endDate endTime maxDeleteBatch");
-		System.out.println("eg:\n" + HBaseBatchDeleteApp.class.getName() + " " + zkServers + " " + zkPort + " " + db
-				+ " " + table + " " + dateSdf.format(new Date()) + " 00:00:00 " + dateSdf.format(new Date())
-				+ " 23:59:59 " + maxDeleteBatch);
+		log.info("eg:\n" + HBaseBatchDeleteApp.class.getName() + " " + zkServers + " " + zkPort + " " + db + " " + table
+				+ " " + dateSdf.format(new Date()) + " 00:00:00 " + dateSdf.format(new Date()) + " 23:59:59 "
+				+ maxDeleteBatch);
 
 		if (args.length > 0) {
 			zkServers = args[0].trim();
@@ -84,7 +88,7 @@ public class HBaseBatchDeleteApp {
 		long end = 0;
 
 		if (isEmpty(realTable)) {
-			System.out.println("需要删除的表没有配置正确，请检查！");
+			log.error("需要删除的表没有配置正确，请检查！");
 			return;
 		}
 
@@ -131,20 +135,16 @@ public class HBaseBatchDeleteApp {
 			connection = ConnectionFactory.createConnection(hbaseConf);
 			Scan scan = new Scan();
 			scan.setTimeRange(minTime, maxTime);
-			scan.setBatch(10000);
-//			scan.setRaw(false);
-//			scan.setCaching(10000);
 			table = connection.getTable(TableName.valueOf(tableName));
 
 			long start = System.currentTimeMillis();
 			ResultScanner rs = table.getScanner(scan);
 			List<Delete> list = getDeleteList(rs);
-			System.out.println(
-					"scan table " + tableName + " total used " + (System.currentTimeMillis() - start) + " ms.");
-			System.out.println("scan table " + tableName + " size -> " + list.size());
+			log.info("scan table " + tableName + " total used " + (System.currentTimeMillis() - start) + " ms.");
+			log.info("scan table " + tableName + " size -> " + list.size());
 
 			if (list.isEmpty()) {
-				System.out.println("table " + tableName + " has no data to delete. ignore it.");
+				log.warn("table " + tableName + " has no data to delete. ignore it.");
 				return;
 			}
 
@@ -156,8 +156,8 @@ public class HBaseBatchDeleteApp {
 				if (batchDeletes.size() >= maxDeleteBatch) {
 					start = System.currentTimeMillis();
 					table.delete(batchDeletes);
-					System.out.println("batch delete used " + (System.currentTimeMillis() - start)
-							+ " ms. batch size -> " + batchDeletes.size());
+					log.info("batch delete used " + (System.currentTimeMillis() - start) + " ms. batch size -> "
+							+ batchDeletes.size());
 					batchDeletes.clear();
 				}
 			}
@@ -165,17 +165,20 @@ public class HBaseBatchDeleteApp {
 			if (!batchDeletes.isEmpty()) {
 				start = System.currentTimeMillis();
 				table.delete(batchDeletes);
-				System.out.println("batch delete used " + (System.currentTimeMillis() - start) + " ms. batch size -> "
+				log.info("batch delete used " + (System.currentTimeMillis() - start) + " ms. batch size -> "
 						+ batchDeletes.size());
 			}
+
+			log.warn("hbase table {} delete finished. start:{},end:{},total:{}", tableName, startTime, endTime,
+					list.size());
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage(), e);
 		} finally {
 			if (null != table) {
 				try {
 					table.close();
 				} catch (IOException e) {
-					e.printStackTrace();
+					log.error(e.getMessage(), e);
 				}
 			}
 
@@ -183,7 +186,7 @@ public class HBaseBatchDeleteApp {
 				try {
 					connection.close();
 				} catch (IOException e) {
-					e.printStackTrace();
+					log.error(e.getMessage(), e);
 				}
 			}
 		}
