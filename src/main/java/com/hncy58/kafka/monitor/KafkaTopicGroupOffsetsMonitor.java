@@ -1,4 +1,4 @@
-package com.hncy58.kafka;
+package com.hncy58.kafka.monitor;
 
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
