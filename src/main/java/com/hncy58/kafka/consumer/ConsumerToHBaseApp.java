@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import com.hncy58.ds.ServerStatusReportUtil;
 import com.hncy58.heartbeat.HeartRunnable;
-import com.hncy58.kafka.handler.HBaseHandler;
-import com.hncy58.kafka.handler.Handler;
+import com.hncy58.kafka.consumer.handler.HBaseHandler;
+import com.hncy58.kafka.consumer.handler.Handler;
 import com.hncy58.util.PropsUtil;
 
 public class ConsumerToHBaseApp {
