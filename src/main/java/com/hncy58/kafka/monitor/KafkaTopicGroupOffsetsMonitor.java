@@ -342,8 +342,8 @@ public class KafkaTopicGroupOffsetsMonitor {
 		return shutdown;
 	}
 
-	public void setShutdown(boolean shutdown) {
-		KafkaTopicGroupOffsetsMonitor.shutdown = shutdown;
+	public void setShutdown(boolean flag) {
+		shutdown = flag;
 	}
 
 }
