@@ -1,11 +1,24 @@
-package com.hncy58.kafka;
+package com.hncy58.kafka.consumer;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -14,50 +27,46 @@ import org.slf4j.LoggerFactory;
 
 import com.hncy58.ds.ServerStatusReportUtil;
 import com.hncy58.heartbeat.HeartRunnable;
-import com.hncy58.kafka.handler.HBaseHandler;
-import com.hncy58.kafka.handler.Handler;
 import com.hncy58.util.PropsUtil;
 
-public class ConsumerToHBaseApp {
+public class ConsumerToHDFSApp {
 
-	private static final Logger log = LoggerFactory.getLogger(ConsumerToHBaseApp.class);
+	private static final Logger log = LoggerFactory.getLogger(ConsumerToHDFSApp.class);
 
-	private static final String PROP_PREFIX = "kafka-to-hbase";
+	private static final String PROP_PREFIX = "kafka-to-hdfs";
 
-	private static String agentSvrName = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrName", "KafkaToHBase");
-	private static String agentSvrGroup = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrGroup", "KafkaToHBaseGroup");
+	private static String agentSvrName = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrName", "KafkaToHDFS");
+	private static String agentSvrGroup = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrGroup", "KafkaToHDFSGroup");
 	private static int agentSvrType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrType", "2"));
 	private static int agentSourceType = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSourceType", "2"));
 	private static int agentDestType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentDestType", "2"));
 
-	private static int fetchMiliseconds = Integer
-			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "fetchMiliseconds", "1000"));
-	private static int sleepSeconds = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "sleepSeconds", "5"));
-	private static int minBatchSize = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "minBatchSize", "5000"));
-	private static int minSleepCnt = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "minSleepCnt", "5"));
-	private static int maxOffsetCommitRetryCnt = Integer
-			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "maxOffsetCommitRetryCnt", "3"));
-	private static int offsetCommitRetryInterval = Integer
-			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "offsetCommitRetryInterval", "3"));
-	private static int maxErrHandledCnt = Integer
-			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "maxErrHandledCnt", "5"));
+	private static int FETCH_MILISECONDS = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "FETCH_MILISECONDS", "1000"));
+	private static int SLEEP_SECONDS = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "SLEEP_SECONDS", "5"));
+	private static int MIN_BATCH_SIZE = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "MIN_BATCH_SIZE", "5000"));
+	private static int MIN_SLEEP_CNT = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "MIN_SLEEP_CNT", "5"));
+	private static int OFFSET_COMMIT_RETRY_CNT = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "OFFSET_COMMIT_RETRY_CNT", "3"));
+	private static int OFFSET_COMMIT_RETRY_INTERVAL = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "OFFSET_COMMIT_RETRY_INTERVAL", "3"));
+	private static int MAX_ERR_HANDLED_CNT = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "MAX_ERR_HANDLED_CNT", "5"));
 	private static int ERR_HANDLED_CNT = 0;
 	private static Long TOTAL_MSG_CNT = 0L;
 
 	private static String kafkaServers = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaServers",
 			"162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092");
-	private static String kafkaGroupId = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaGroupId", "ConsumerToHBaseApp");
+	private static String kafkaGroupId = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaGroupId", "ConsumerToHDFSApp");
 	private static List<String> subscribeToipcs = Arrays
 			.asList(PropsUtil.getWithDefault(PROP_PREFIX, "subscribeToipcs", "").split(" *, *"));
 
 	private static String localFileNamePrefix = PropsUtil.getWithDefault(PROP_PREFIX, "localFileNamePrefix",
 			"unHadledData");
-	private static String hbaseColumnFamilyName = PropsUtil.getWithDefault(PROP_PREFIX, "hbaseColumnFamilyName",
-			"info");
-	private static String zkServers = PropsUtil.getWithDefault(PROP_PREFIX, "zkServers",
-			"162.16.6.180,162.16.6.181,162.16.6.182");
-	private static String zkPort = PropsUtil.getWithDefault(PROP_PREFIX, "zkPort", "2181");
+	private static String HDFS_PREFIX_PATH = PropsUtil.getWithDefault(PROP_PREFIX, "HDFS_PREFIX_PATH",
+			"hdfs://hncy58/tmp/");
 
 	private boolean run = false;
 	private boolean shutdown_singal = false;
@@ -66,13 +75,27 @@ public class ConsumerToHBaseApp {
 	private static HeartRunnable heartRunnable;
 	private static KafkaConsumer<String, String> consumer;
 	private static Configuration hadoopConf = new Configuration(true);
-	
-	private Handler handler;
+
+	public void setDownSignal(boolean flag) {
+		shutdown_singal = flag;
+	}
+
+	public boolean getDownSignal() {
+		return shutdown_singal;
+	}
+
+	public boolean isShutdown() {
+		return shutdown;
+	}
+
+	public void setShutdown(boolean shutdown) {
+		this.shutdown = shutdown;
+	}
 
 	public static void main(String[] args) {
 
-		ConsumerToHBaseApp app = new ConsumerToHBaseApp();
-		
+		ConsumerToHDFSApp app = new ConsumerToHDFSApp();
+
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override
 			public void run() {
@@ -90,7 +113,6 @@ public class ConsumerToHBaseApp {
 		}, "ShutdownHookThread"));
 
 		app.init(args);
-		
 		// 开始运行
 		app.doRun(args);
 
@@ -98,6 +120,7 @@ public class ConsumerToHBaseApp {
 		app.setDownSignal(true);
 		// Runtime.getRuntime().exit(2);
 		// System.exit(2);
+
 	}
 
 	public void doRun(String[] args) {
@@ -108,7 +131,7 @@ public class ConsumerToHBaseApp {
 			while (run) {
 				try {
 					// 如果发送了终止进程消息，则停止消费，并且处理掉缓存的消息
-					if (isShutdown() || ERR_HANDLED_CNT >= maxErrHandledCnt) {
+					if (isShutdown() || ERR_HANDLED_CNT >= MAX_ERR_HANDLED_CNT) {
 						run = false;
 						try {
 							if (buffer != null && !buffer.isEmpty()) {
@@ -139,7 +162,7 @@ public class ConsumerToHBaseApp {
 							System.exit(1);
 						}
 					} else {
-						ConsumerRecords<String, String> records = consumer.poll(fetchMiliseconds);
+						ConsumerRecords<String, String> records = consumer.poll(FETCH_MILISECONDS);
 						int cnt = records.count();
 						if (cnt > 0) {
 							log.error("current polled " + cnt + " records.");
@@ -149,7 +172,7 @@ public class ConsumerToHBaseApp {
 								buffer.add(record);
 							}
 
-							if (buffer.size() >= minBatchSize || (sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
+							if (buffer.size() >= MIN_BATCH_SIZE || (sleepdCnt >= MIN_SLEEP_CNT && !buffer.isEmpty())) {
 								sleepdCnt = 0;
 								doHandle(buffer);
 								buffer.clear();
@@ -159,13 +182,13 @@ public class ConsumerToHBaseApp {
 								sleepdCnt += 1;
 							}
 						} else {
-							log.error("no data to poll, sleep " + sleepSeconds + " s. buff size:" + buffer.size());
-							if ((sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
+							log.error("no data to poll, sleep " + SLEEP_SECONDS + " s. buff size:" + buffer.size());
+							if ((sleepdCnt >= MIN_SLEEP_CNT && !buffer.isEmpty())) {
 								sleepdCnt = 0;
 								doHandle(buffer);
 								buffer.clear();
 							} else {
-								Thread.sleep(sleepSeconds * 1000);
+								Thread.sleep(SLEEP_SECONDS * 1000);
 								sleepdCnt += 1;
 							}
 						}
@@ -194,9 +217,9 @@ public class ConsumerToHBaseApp {
 	private void init(String[] args) {
 
 		try {
-			log.info("usage:" + ConsumerToHBaseApp.class.getName()
+			log.info("usage:" + ConsumerToHDFSApp.class.getName()
 					+ " kafkaServers kafkaTopicGroupName kafkaToipcs FETCH_MILISECONDS MIN_BATCH_SIZE MIN_SLEEP_CNT SLEEP_SECONDS");
-			log.info("eg:" + ConsumerToHBaseApp.class.getName()
+			log.info("eg:" + ConsumerToHDFSApp.class.getName()
 					+ " localhost:9092 kafka_hdfs_group_2 test-topic-1 1000 5000 3 5");
 
 			int ret = ServerStatusReportUtil.register(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
@@ -240,23 +263,23 @@ public class ConsumerToHBaseApp {
 			}
 
 			if (args.length > 3) {
-				hbaseColumnFamilyName = args[3].trim();
+				HDFS_PREFIX_PATH = args[3].trim();
 			}
 
 			if (args.length > 4) {
-				fetchMiliseconds = Integer.parseInt(args[4].trim());
+				FETCH_MILISECONDS = Integer.parseInt(args[4].trim());
 			}
 
 			if (args.length > 5) {
-				minBatchSize = Integer.parseInt(args[5].trim());
+				MIN_BATCH_SIZE = Integer.parseInt(args[5].trim());
 			}
 
 			if (args.length > 6) {
-				minSleepCnt = Integer.parseInt(args[6].trim());
+				MIN_SLEEP_CNT = Integer.parseInt(args[6].trim());
 			}
 
 			if (args.length > 7) {
-				sleepSeconds = Integer.parseInt(args[7].trim());
+				SLEEP_SECONDS = Integer.parseInt(args[7].trim());
 			}
 
 			props.put("bootstrap.servers", kafkaServers);
@@ -271,8 +294,6 @@ public class ConsumerToHBaseApp {
 			consumer = new KafkaConsumer<>(props);
 			consumer.subscribe(subscribeToipcs);
 
-			setHandler(new HBaseHandler(zkServers, zkPort, hbaseColumnFamilyName, localFileNamePrefix));
-			
 			heartRunnable = new HeartRunnable(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
 					agentDestType);
 			heartThread = new Thread(heartRunnable, "agentSvrStatusReportThread");
@@ -289,13 +310,13 @@ public class ConsumerToHBaseApp {
 
 		int offsetCommitRetryCnt = 0;
 		boolean success = false;
-		while (!success && offsetCommitRetryCnt < maxOffsetCommitRetryCnt) {
+		while (!success && offsetCommitRetryCnt < OFFSET_COMMIT_RETRY_CNT) {
 			try {
-				getHandler().handle(buffer);
+				handle(buffer);
 				success = true;
 			} catch (Exception e) {
 				log.error("处理数据异常，重试次数：" + offsetCommitRetryCnt + "，错误信息：" + e.getMessage(), e);
-				Thread.sleep(offsetCommitRetryInterval * 1000);
+				Thread.sleep(OFFSET_COMMIT_RETRY_INTERVAL * 1000);
 			} finally {
 				offsetCommitRetryCnt += 1;
 			}
@@ -316,6 +337,60 @@ public class ConsumerToHBaseApp {
 		}
 	}
 
+	private void handle(List<ConsumerRecord<String, String>> buffer) throws Exception {
+
+		Map<String, StringBuffer> buffMap = new HashMap<>();
+
+		try {
+			log.error("start to handle datas -> " + buffer.size());
+			buffer.forEach(record -> {
+				String tmpStr = (record.timestamp() + "," + record.partition() + "," + record.offset() + ","
+						+ record.key() + "," + record.value() + "\n");
+				if (buffMap.containsKey(record.topic())) {
+					buffMap.get(record.topic()).append(tmpStr);
+				} else {
+					StringBuffer buf = new StringBuffer();
+					buf.append(tmpStr);
+					buffMap.put(record.topic(), buf);
+				}
+			});
+
+			if (!buffMap.isEmpty()) {
+				for (Entry<String, StringBuffer> entry : buffMap.entrySet()) {
+					String topic = entry.getKey();
+					if (entry.getValue().length() > 0) {
+						String hdfs_path = HDFS_PREFIX_PATH + topic + "/"
+								+ new SimpleDateFormat("yyyyMMddHH").format(new Date());
+						Path filePath = new Path(hdfs_path);
+						FileSystem fs = null;
+						OutputStream out = null;
+						try {
+							fs = FileSystem.get(new URI(hdfs_path), hadoopConf);
+							if (!fs.exists(filePath)) {
+								out = fs.create(filePath, false);
+							} else {
+								out = fs.append(filePath);
+							}
+							IOUtils.copyBytes(new ByteArrayInputStream(entry.getValue().toString().getBytes("UTF-8")),
+									out, 4096, true);
+							// out.flush();
+						} finally {
+							// IOUtils.closeStream(out);
+							// out = null;
+							// IOUtils.closeStream(fs);
+							// fs.close();
+							// fs = null;
+						}
+					}
+				}
+			}
+
+			log.error("end handled datas.");
+		} finally {
+
+		}
+	}
+
 	/**
 	 * 可重试N次提交偏移量
 	 * 
@@ -325,13 +400,13 @@ public class ConsumerToHBaseApp {
 	private boolean commitOffsets() throws InterruptedException {
 		int offsetCommitRetryCnt = 1;
 		boolean success = false;
-		while (!success && offsetCommitRetryCnt < maxOffsetCommitRetryCnt) {
+		while (!success && offsetCommitRetryCnt < OFFSET_COMMIT_RETRY_CNT) {
 			try {
 				consumer.commitSync();
 				success = true;
 			} catch (Exception e) {
 				log.error("消费成功数据，但提交偏移量失败，重试次数：" + offsetCommitRetryCnt + "，错误信息：" + e.getMessage(), e);
-				Thread.sleep(offsetCommitRetryInterval * 1000);
+				Thread.sleep(OFFSET_COMMIT_RETRY_INTERVAL * 1000);
 			} finally {
 				offsetCommitRetryCnt += 1;
 			}
@@ -350,13 +425,13 @@ public class ConsumerToHBaseApp {
 
 		int offsetCommitRetryCnt = 1;
 		boolean success = false;
-		while (!success && offsetCommitRetryCnt < maxOffsetCommitRetryCnt) {
+		while (!success && offsetCommitRetryCnt < OFFSET_COMMIT_RETRY_CNT) {
 			try {
-				getHandler().onHandleFail(buffer);
+				saveToLocalFile(buffer);
 				success = true;
 			} catch (Exception e) {
 				log.error("写入未处理数据到本地文件失败，重试次数：" + offsetCommitRetryCnt + "，错误信息：" + e.getMessage(), e);
-				Thread.sleep(offsetCommitRetryInterval * 1000);
+				Thread.sleep(OFFSET_COMMIT_RETRY_INTERVAL * 1000);
 			} finally {
 				offsetCommitRetryCnt += 1;
 			}
@@ -364,28 +439,58 @@ public class ConsumerToHBaseApp {
 		return success;
 	}
 
-	public void setDownSignal(boolean flag) {
-		shutdown_singal = flag;
-	}
+	/**
+	 * 保存未成功提交偏移量的数据
+	 * 
+	 * @param buffer
+	 * @return
+	 * @throws Exception
+	 */
+	private boolean saveToLocalFile(List<ConsumerRecord<String, String>> data) throws Exception {
 
-	public boolean getDownSignal() {
-		return shutdown_singal;
-	}
+		boolean success = false;
+		if (data == null || data.isEmpty())
+			return !success;
 
-	public boolean isShutdown() {
-		return shutdown;
-	}
+		long startOffset = data.get(0).offset();
+		long endOffset = data.get(data.size() - 1).offset();
+		Map<String, StringBuffer> buffMap = new HashMap<>();
 
-	public void setShutdown(boolean shutdown) {
-		this.shutdown = shutdown;
-	}
+		log.error("start to store datas to local -> " + data.size());
+		data.forEach(record -> {
+			String tmpStr = (record.timestamp() + "," + record.partition() + "," + record.offset() + "," + record.key()
+					+ "," + record.value() + "\n");
+			if (buffMap.containsKey(record.topic())) {
+				buffMap.get(record.topic()).append(tmpStr);
+			} else {
+				StringBuffer buf = new StringBuffer();
+				buf.append(tmpStr);
+				buffMap.put(record.topic(), buf);
+			}
+		});
 
-	public Handler getHandler() {
-		return handler;
-	}
+		if (!buffMap.isEmpty()) {
+			for (Entry<String, StringBuffer> entry : buffMap.entrySet()) {
+				String topic = entry.getKey();
+				StringBuffer buf = entry.getValue();
+				if (buf != null && buf.length() > 0) {
+					BufferedOutputStream bos = null;
+					try {
+						String fileName = localFileNamePrefix + "_" + topic + "_"
+								+ new SimpleDateFormat("yyyyMMddHH").format(new Date()) + "_" + startOffset + "-"
+								+ endOffset;
+						bos = new BufferedOutputStream(new FileOutputStream(fileName, true));
+						IOUtils.copyBytes(new ByteArrayInputStream(buf.toString().getBytes("UTF-8")), bos, 4096, true);
+						bos.flush();
+						success = true;
+					} finally {
+						IOUtils.closeStream(bos);
+					}
+				}
+			}
+		}
 
-	public void setHandler(Handler handler) {
-		this.handler = handler;
+		log.error("end stored datas to local.");
+		return success;
 	}
-
 }

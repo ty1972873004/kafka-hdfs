@@ -1,6 +1,11 @@
-package com.hncy58.kafka;
+package com.hncy58.kafka.producer;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -13,26 +18,35 @@ import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.OutOfOrderSequenceException;
 import org.apache.kafka.common.errors.ProducerFencedException;
 
-public class ProducerApp {
+import com.alibaba.fastjson.JSONObject;
 
-	private static int SEND_BATCH_SIZE = 5;
+public class JsonDataProducerApp {
+
+	private static int SEND_BATCH_SIZE = 5000;
 	private static int SEND_BATCH_CNT = 200;
 	private static int SEND_BATCH_INTERVAL = 1;
 
 	public static final String[] ALPHA_ARR = new String[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b",
 			"c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w",
 			"x", "y", "z" };
+
+	public static final String[] DB_ID_ARR = new String[] {"ccs"};
+	public static final String[] TBL_ID_ARR = new String[] { "customer", "account", "order"};
+	public static final String[] OPR_TYPE_ARR = new String[] { "i", "u", "d" };
+
 	public static String TOPIC_NAME = "test-topic-3";
-	public static String KAFKA_SERVERS = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
+	public static String KAFKA_SERVERS = "192.168.144.128:9092";
 
 	public static boolean USE_TRANSACTION = false;
 
 	private static Producer<String, String> producer;
 
 	public static void main(String[] args) {
-		
-		System.out.println("Uage:\n\t" + ProducerApp.class.getName() + " KAFKA_SERVERS TOPIC_NAME SEND_BATCH_SIZE SEND_BATCH_CNT SEND_BATCH_INTERVAL USE_TRANSACTION");
-		System.out.println("eg:\n\t" + ProducerApp.class.getName() + " localhost:9092 test_topic_1 10000 100 1 true");
+
+		System.out.println("Uage:\n\t" + JsonDataProducerApp.class.getName()
+				+ " KAFKA_SERVERS TOPIC_NAME SEND_BATCH_SIZE SEND_BATCH_CNT SEND_BATCH_INTERVAL USE_TRANSACTION");
+		System.out.println(
+				"eg:\n\t" + JsonDataProducerApp.class.getName() + " localhost:9092 test_topic_1 10000 100 1 true");
 
 		if (args.length > 0) {
 			KAFKA_SERVERS = args[0].trim();
@@ -45,11 +59,11 @@ public class ProducerApp {
 		if (args.length > 2) {
 			SEND_BATCH_SIZE = Integer.parseInt(args[2].trim());
 		}
-		
+
 		if (args.length > 3) {
 			SEND_BATCH_CNT = Integer.parseInt(args[3].trim());
 		}
-		
+
 		if (args.length > 4) {
 			SEND_BATCH_INTERVAL = Integer.parseInt(args[4].trim());
 		}
@@ -65,6 +79,8 @@ public class ProducerApp {
 			producer = buildUnTransactionProducer();
 		}
 
+		Random random = new Random();
+
 		while (SEND_BATCH_CNT > 0) {
 			try {
 				if (USE_TRANSACTION) {
@@ -72,9 +88,29 @@ public class ProducerApp {
 					producer.beginTransaction();
 				}
 				for (int k = 0; k < SEND_BATCH_SIZE; k++) {
-					Future<RecordMetadata> future = producer.send(new ProducerRecord<String, String>(TOPIC_NAME,
-							Integer.toString(SEND_BATCH_CNT * SEND_BATCH_SIZE + k),
-							"中国" + ALPHA_ARR[k % ALPHA_ARR.length]));
+					String key = Integer.toString(SEND_BATCH_CNT * SEND_BATCH_SIZE + k);
+					JSONObject json = new JSONObject(true);
+					Map<String, Object> schema = new HashMap<>();
+					List<Map<String, Object>> data = new ArrayList<>();
+					schema.put("offset", key);
+					schema.put("time", System.currentTimeMillis());
+					schema.put("agt_svr_nm", "canal_01");
+					schema.put("db_id", DB_ID_ARR[random.nextInt(DB_ID_ARR.length)]);
+					schema.put("tbl_id", TBL_ID_ARR[random.nextInt(TBL_ID_ARR.length)]);
+					schema.put("opr_type", OPR_TYPE_ARR[random.nextInt(OPR_TYPE_ARR.length)]);
+					schema.put("pk_col", "id");
+
+					Map<String, Object> valueMap = new HashMap<>();
+					valueMap.put("id", random.nextInt(100000));
+					valueMap.put("name", "name" + random.nextInt(100000));
+					valueMap.put("gender", random.nextInt(2));
+					data.add(valueMap);
+
+					json.put("schema", schema);
+					json.put("data", data);
+					String value = json.toJSONString();
+					Future<RecordMetadata> future = producer
+							.send(new ProducerRecord<String, String>(TOPIC_NAME, key, value));
 					// try {
 					// System.out.println(future.get().offset() + "," +
 					// future.get().partition());

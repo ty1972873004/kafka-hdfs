@@ -1,4 +1,4 @@
-package com.hncy58.kafka;
+package com.hncy58.kafka.consumer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,6 +14,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+
+import com.hncy58.kafka.producer.ProducerApp;
 
 public class ConsumerApp3 {
 

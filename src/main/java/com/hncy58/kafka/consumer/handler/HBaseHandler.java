@@ -1,4 +1,4 @@
-package com.hncy58.kafka.handler;
+package com.hncy58.kafka.consumer.handler;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
