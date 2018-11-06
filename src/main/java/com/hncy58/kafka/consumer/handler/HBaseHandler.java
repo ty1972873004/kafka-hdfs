@@ -5,6 +5,8 @@ import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +90,13 @@ public class HBaseHandler implements Handler {
 			String pkCols = schema.getString("pk_col");
 			String mapKey = (dbId == null || "".equals(dbId.trim())) ? tblId : dbId + ":" + tblId;
 
+			final ArrayList<String> rowKeys = new ArrayList<>(Arrays.asList(r.key()));
+			if (pkCols != null && !"".equals(pkCols.trim())) {
+				rowKeys.clear();
+				rowKeys.addAll(Arrays.asList(pkCols.split(" *, *")));
+				Collections.sort(rowKeys);
+			}
+
 			if ("i".equals(oprType) || "u".equals(oprType)) {
 				List<Put> listPut = new ArrayList<Put>();
 				jsonData.forEach(dataObj -> {
@@ -98,17 +107,25 @@ public class HBaseHandler implements Handler {
 						log.error("data child is not correct json :{}", dataObj);
 						return;
 					}
-					Put put = new Put(Bytes.toBytes(r.key()), r.timestamp());
-					put.addColumn(cfBytes, Bytes.toBytes("ts"), Bytes.toBytes(schema.getString("time")));
-					put.addColumn(cfBytes, Bytes.toBytes("offset"), Bytes.toBytes(schema.getString("offset")));
-					put.addColumn(cfBytes, Bytes.toBytes("time"), Bytes.toBytes(schema.getString("time")));
-
-					dataJson.entrySet().forEach(entry -> {
-						put.addColumn(cfBytes, Bytes.toBytes(entry.getKey()),
-								Bytes.toBytes(entry.getValue().toString()));
-					});
-
-					listPut.add(put);
+					
+					StringBuffer idBuf = new StringBuffer("");
+					for(String id : rowKeys) {
+						idBuf.append("_" + dataJson.getString(id));
+					}
+					
+					if(idBuf.length() > 0) {
+						Put put = new Put(Bytes.toBytes(idBuf.delete(0, 1).toString()), r.timestamp());
+						put.addColumn(cfBytes, Bytes.toBytes("ts"), Bytes.toBytes(schema.getString("time")));
+						put.addColumn(cfBytes, Bytes.toBytes("offset"), Bytes.toBytes(schema.getString("offset")));
+						put.addColumn(cfBytes, Bytes.toBytes("time"), Bytes.toBytes(schema.getString("time")));
+						
+						dataJson.entrySet().forEach(entry -> {
+							put.addColumn(cfBytes, Bytes.toBytes(entry.getKey()),
+									Bytes.toBytes(entry.getValue().toString()));
+						});
+						
+						listPut.add(put);
+					}
 				});
 
 				if (insertPutsMap.containsKey(mapKey)) {

@@ -152,7 +152,7 @@ public class DSPoolUtil {
 		Connection con = null;
 		PreparedStatement ps = null;
 
-		List<Map<String, Object>> data;
+		List<Map<String, Object>> data = new ArrayList<>();
 		try {
 			con = getConnection();
 			ps = con.prepareStatement(sql);
@@ -172,7 +172,6 @@ public class DSPoolUtil {
 				names.add(meta.getColumnLabel(i + 1));
 			}
 
-			data = new ArrayList<>();
 			while (rs.next()) {
 				Map<String, Object> map = new HashMap<>();
 				for (String name : names) {

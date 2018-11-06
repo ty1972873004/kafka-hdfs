@@ -1,5 +1,6 @@
 package com.hncy58.kafka.consumer;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -96,6 +97,16 @@ public class ConsumerToHBaseApp {
 
 		log.error("初始化服务失败，请检查相关配置是否正确！");
 		app.setDownSignal(true);
+		try {
+			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
+					"监测到服务中断信号，退出服务！");
+			log.info("设置服务状态为下线：" + ret);
+			ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4, "设置服务状态为下线：" + ret
+					+ "，shutdown_singal：" + app.getDownSignal() + "，ERR_HANDLED_CNT：" + ERR_HANDLED_CNT);
+			log.info("上报告警结果：" + ret);
+		} catch (SQLException e) {
+			log.error(e.getMessage(), e);
+		}
 		// Runtime.getRuntime().exit(2);
 		// System.exit(2);
 	}

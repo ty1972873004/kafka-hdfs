@@ -22,8 +22,8 @@ import com.alibaba.fastjson.JSONObject;
 
 public class JsonDataProducerApp {
 
-	private static int SEND_BATCH_SIZE = 5000;
-	private static int SEND_BATCH_CNT = 200;
+	private static int SEND_BATCH_SIZE = 10000;
+	private static int SEND_BATCH_CNT = 1;
 	private static int SEND_BATCH_INTERVAL = 1;
 
 	public static final String[] ALPHA_ARR = new String[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b",
@@ -96,14 +96,18 @@ public class JsonDataProducerApp {
 					schema.put("time", System.currentTimeMillis());
 					schema.put("agt_svr_nm", "canal_01");
 					schema.put("db_id", DB_ID_ARR[random.nextInt(DB_ID_ARR.length)]);
-					schema.put("tbl_id", TBL_ID_ARR[random.nextInt(TBL_ID_ARR.length)]);
+//					schema.put("tbl_id", TBL_ID_ARR[random.nextInt(TBL_ID_ARR.length)]);
+					schema.put("tbl_id", "account");
 					schema.put("opr_type", OPR_TYPE_ARR[random.nextInt(OPR_TYPE_ARR.length)]);
 					schema.put("pk_col", "id");
 
 					Map<String, Object> valueMap = new HashMap<>();
 					valueMap.put("id", random.nextInt(100000));
 					valueMap.put("name", "name" + random.nextInt(100000));
+					valueMap.put("cert_id", "43052119890625" + random.nextInt(10000));
 					valueMap.put("gender", random.nextInt(2));
+					valueMap.put("year_income", random.nextFloat() * 200000);
+					valueMap.put("birth", System.currentTimeMillis());
 					data.add(valueMap);
 
 					json.put("schema", schema);

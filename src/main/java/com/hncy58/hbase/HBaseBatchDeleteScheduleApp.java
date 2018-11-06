@@ -48,7 +48,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 			+ "(id,db_name,table_name,status,start_time,end_time,del_size,create_time,remark) values(?,?,?,?,?,?,?,now(),?)";
 
 	private static String zkServers = PropsUtil.getWithDefault(PROP_PREFIX, "zkServers", "192.168.144.128");
-	private static String zkPort = PropsUtil.getWithDefault(PROP_PREFIX, "zkServers", "2181");
+	private static String zkPort = PropsUtil.getWithDefault(PROP_PREFIX, "zkPort", "2181");
 
 	private static int maxDeleteBatch = 20000;
 
@@ -79,7 +79,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 	public static void main(String[] args) throws Exception {
 
 		init(args);
-		
+
 		HBaseBatchDeleteScheduleApp app = new HBaseBatchDeleteScheduleApp();
 
 		log.info("Usage:\n" + HBaseBatchDeleteScheduleApp.class.getName() + " zkServers zkPort maxDeleteBatch");
@@ -93,9 +93,13 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 		c.set(Calendar.MILLISECOND, 0);
 		c.set(Calendar.DAY_OF_MONTH, c.get(Calendar.DAY_OF_MONTH) + 1);
 		long end = c.getTimeInMillis();
+
+		// for test
+		service.scheduleAtFixedRate(app, delay, 120, TimeUnit.SECONDS);
+
 		// 每天凌晨30分开始调度
-		delay = end - start + 30 * 60 * 1000;
-		service.scheduleAtFixedRate(app, delay, 1, TimeUnit.DAYS);
+		// delay = end - start + 30 * 60 * 1000;
+		// service.scheduleAtFixedRate(app, delay, 1, TimeUnit.DAYS);
 
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override
@@ -120,7 +124,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 				try {
 					setShutdown(true);
 					setDownSignal(true);
-					
+
 					boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
 							"监测到服务中断信号，退出服务！");
 					log.error("设置服务状态为下线：" + ret);

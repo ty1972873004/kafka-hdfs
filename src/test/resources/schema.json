@@ -1,0 +1,33 @@
+[
+	{
+		"name": "id",
+		"type": "STRING",
+		"pkType": "rangePartition",
+		"nullable": false
+	},
+	{
+		"name": "name",
+		"type": "STRING",
+		"nullable": false
+	},
+	{
+		"name": "cert_id",
+		"type": "STRING",
+		"nullable": false
+	},
+	{
+		"name": "gender",
+		"type": "INT8",
+		"nullable": true
+	},
+	{
+		"name": "year_income",
+		"type": "FLOAT",
+		"nullable": true
+	},
+	{
+		"name": "birth",
+		"type": "UNIXTIME_MICROS",
+		"nullable": true
+	}
+]
