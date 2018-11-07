@@ -1,4 +1,4 @@
-package com.hncy58.kafka.producer;
+package com.hncy58.kafka;
 
 import java.util.Properties;
 import java.util.concurrent.Future;

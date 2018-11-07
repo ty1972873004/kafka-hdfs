@@ -1,4 +1,4 @@
-package com.hncy58.kafka.consumer;
+package com.hncy58.kafka;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,8 +8,6 @@ import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-
-import com.hncy58.kafka.producer.ProducerApp;
 
 public class ConsumerApp {
 
