@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -104,8 +103,10 @@ public class KuduHandler implements Handler {
 		tables = DSPoolUtil.query(QUERY_SQL, new Object[] {});
 
 		for (Map<String, Object> tableMap : tables) {
+			String dbName = Utils.toString(tableMap.get("db_id"));
 			String tableName = Utils.toString(tableMap.get("table_id"));
 			String schema = Utils.toString(tableMap.get("schema_json"));
+			String realTableName = Utils.isEmpty(dbName) ? tableName : dbName + ":" + tableName;
 			JSONArray schemaJson = JSONObject.parseArray(schema);
 			List<ColumnSchema> columns = new ArrayList<ColumnSchema>();
 			List<String> hashKeys = new ArrayList<>();
@@ -138,9 +139,9 @@ public class KuduHandler implements Handler {
 			});
 
 			Schema kuduSchema = new Schema(columns);
-			kuduTableSchemas.put(tableName, kuduSchema);
+			kuduTableSchemas.put(realTableName, kuduSchema);
 			// 如果表不存在则创建表
-			if (!client.tableExists(tableName)) {
+			if (!client.tableExists(realTableName)) {
 				CreateTableOptions createOptions = new CreateTableOptions().setNumReplicas(numReplicas);
 				if (!rangeKeys.isEmpty()) {
 					createOptions.setRangePartitionColumns(rangeKeys);
@@ -148,7 +149,7 @@ public class KuduHandler implements Handler {
 				if (!hashKeys.isEmpty()) {
 					createOptions.addHashPartitions(hashKeys, buckets);
 				}
-				client.createTable(tableName, kuduSchema, createOptions);
+				client.createTable(realTableName, kuduSchema, createOptions);
 			}
 		}
 	}
@@ -159,20 +160,35 @@ public class KuduHandler implements Handler {
 		if (data == null || data.isEmpty())
 			return true;
 
+		Map<String, KuduTable> kudutables = new HashMap<>();
+		log.info("start init kudu session.");
 		KuduSession session = client.newSession();
 		session.setFlushMode(FLUSH_MODE);
 		session.setMutationBufferSpace(OPERATION_BATCH);
+		log.info("init kudu session finished.");
 		Map<String, List<Upsert>> upsertsMap = new HashMap<>();
 		Map<String, List<Delete>> deletesMap = new HashMap<>();
-
+		Schema kuduSchema;
+		String tblId;
+		String dbId;
+		JSONObject schema;
+		JSONArray jsonDataArr;
+		JSONObject json = null;
+		String value;
+		String oprType;
+		String pkCols;
+		ArrayList<String> rowKeys = new ArrayList<>();
+		KuduTable table;
+		
+		log.info("start parse kafka data.");
+		long start = System.currentTimeMillis();
 		for (ConsumerRecord<String, String> r : data) {
-			String value = r.value();
+			value = r.value();
 			if (StringUtils.isEmpty(value)) {
 				log.error("data value is null, ignored, record:{}", r);
-				break;
+				continue;
 			}
 
-			JSONObject json = null;
 			try {
 				json = JSONObject.parseObject(value);
 			} catch (Exception e) {
@@ -181,45 +197,65 @@ public class KuduHandler implements Handler {
 
 			if (json == null || json.isEmpty() || !json.containsKey("schema") || !json.containsKey("data")) {
 				log.error("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
-				break;
+				continue;
 			}
 
-			JSONObject schema = json.getJSONObject("schema");
-			JSONArray jsonDataArr = json.getJSONArray("data");
+			schema = json.getJSONObject("schema");
+			jsonDataArr = json.getJSONArray("data");
 			if (jsonDataArr.isEmpty()) {
 				log.error("json value data field is null, ignored, record:{}", r);
-				break;
+				continue;
 			}
 
-			String tblId = schema.getString("tbl_id");
+			tblId = schema.getString("tbl_id");
+			dbId = schema.getString("db_id");
+			tblId = Utils.isEmpty(dbId) ? tblId : dbId + ":" + tblId;
 
 			if (!client.tableExists(tblId)) {
 				boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
 						"Kudu表：" + tblId + "不存在，数据被忽略，data:" + value);
-				break;
+				log.error("Kudu表:{}不存在，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+				continue;
 			}
 
-			KuduTable table = client.openTable(tblId);
-			Schema kuduSchema = kuduTableSchemas.get(tblId);
-			String oprType = schema.getString("opr_type");
-			String pkCols = schema.getString("pk_col");
+			// TODO
+			kuduSchema = kuduTableSchemas.get(tblId);
 
-			final ArrayList<String> rowKeys = new ArrayList<>(Arrays.asList(r.key()));
+			if(Utils.isEmpty(kuduSchema)) {
+				boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+						"Kudu表：" + tblId + "对应Schema不存在或者未加载成功，数据被忽略，data:" + value);
+				log.error("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+				continue;
+			}
+			
+			log.debug("start init kudu table.");
+			if(kudutables.containsKey(tblId)) {
+				table = client.openTable(tblId);
+			} else {
+				log.info("add new kudu table to kudutables cache.");
+				table = client.openTable(tblId);
+				kudutables.put(tblId, table);
+			}
+			log.debug("init kudu table finished.");
+			oprType = schema.getString("opr_type");
+			pkCols = schema.getString("pk_col");
+
 			if (pkCols != null && !"".equals(pkCols.trim())) {
 				rowKeys.clear();
 				rowKeys.addAll(Arrays.asList(pkCols.split(" *, *")));
-				Collections.sort(rowKeys);
 			}
 
+			log.debug("start parse list data.");
+			long parseListStart = System.currentTimeMillis();
 			if ("i".equals(oprType) || "u".equals(oprType)) {
 				List<Upsert> listUpsert = new ArrayList<Upsert>();
-				jsonDataArr.forEach(dataObj -> {
+				for(Object dataObj : jsonDataArr) {
 					JSONObject dataJson = null;
 					if (dataObj instanceof JSONObject) {
 						dataJson = (JSONObject) dataObj;
 					} else {
 						log.error("data child is not correct json :{}", dataObj);
-						return;
+						continue;
 					}
 
 					StringBuffer idBuf = new StringBuffer("");
@@ -230,10 +266,10 @@ public class KuduHandler implements Handler {
 					if (idBuf.length() > 0) {
 						Upsert upsert = table.newUpsert();
 						PartialRow row = upsert.getRow();
-						dataJson.entrySet().forEach(entry -> {
+						for(Entry<String, Object> entry : dataJson.entrySet()) {
 							ColumnSchema colSchema = kuduSchema.getColumn(entry.getKey());
 							if (colSchema == null)
-								return;
+								continue;
 							switch (colSchema.getType()) {
 							case BINARY:
 								row.addBinary(entry.getKey(), TypeUtils.castToBytes(entry.getValue()));
@@ -268,11 +304,11 @@ public class KuduHandler implements Handler {
 							default:
 								break;
 							}
-						});
+						}
 
 						listUpsert.add(upsert);
 					}
-				});
+				}
 
 				if (upsertsMap.containsKey(tblId)) {
 					upsertsMap.get(tblId).addAll(listUpsert);
@@ -281,20 +317,20 @@ public class KuduHandler implements Handler {
 				}
 			} else if ("d".equals(oprType)) {
 				List<Delete> listDelete = new ArrayList<Delete>();
-				jsonDataArr.forEach(dataObj -> {
+				for(Object dataObj : jsonDataArr) {
 					if (dataObj != null && dataObj instanceof JSONObject) {
 					} else {
-						return;
+						continue;
 					}
 
 					JSONObject rowJson = (JSONObject) dataObj;
 
 					Delete delete = table.newDelete();
 					PartialRow row = delete.getRow();
-					rowKeys.forEach(key -> {
+					for(String key : rowKeys) {
 						ColumnSchema colSchema = kuduSchema.getColumn(key);
 						if (colSchema == null)
-							return;
+							continue;
 						switch (colSchema.getType()) {
 						case BINARY:
 							row.addBinary(key, rowJson.getBytes(key));
@@ -329,10 +365,10 @@ public class KuduHandler implements Handler {
 						default:
 							break;
 						}
-					});
+					}
 
 					listDelete.add(delete);
-				});
+				}
 
 				if (deletesMap.containsKey(tblId)) {
 					deletesMap.get(tblId).addAll(listDelete);
@@ -340,8 +376,10 @@ public class KuduHandler implements Handler {
 					deletesMap.put(tblId, listDelete);
 				}
 			}
+			log.debug("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
 		}
 
+		log.info("parse kafka data finished. used {} ms.", System.currentTimeMillis() - start);
 		doCommit(session, upsertsMap, deletesMap);
 
 		return true;

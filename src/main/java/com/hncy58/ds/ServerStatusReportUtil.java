@@ -51,7 +51,7 @@ public class ServerStatusReportUtil {
 
 	public static boolean reportAlarm(String agentSvrName, String agentSvrGroup, int agentSvrType, int alarm_type, int alarm_level, String remark)
 			throws SQLException {
-		String sql = "insert into anget_svr_alarm(id, svr_name, svr_group, svr_type, alarm_type, alarm_level, status, remark, create_time, update_time) values(?,?,?,?,?,?,?,?,now(), now()) ";
+		String sql = "insert into agent_svr_alarm(id, svr_name, svr_group, svr_type, alarm_type, alarm_level, status, remark, create_time, update_time) values(?,?,?,?,?,?,?,?,now(), now()) ";
 		int ret = DSPoolUtil.update(sql, null, agentSvrName, agentSvrGroup, agentSvrType, alarm_type, alarm_level, 0, remark);
 		return ret > 0;
 	}

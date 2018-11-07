@@ -21,11 +21,12 @@ import com.hncy58.util.PropsUtil;
 
 /**
  * 读取Kafka数据写入至Kudu表
- * @author	tokings
- * @company	hncy58	湖南长银五八
- * @website	http://www.hncy58.com
+ * 
+ * @author tokings
+ * @company hncy58 湖南长银五八
+ * @website http://www.hncy58.com
  * @version 1.0
- * @date	2018年11月6日 下午5:50:27
+ * @date 2018年11月6日 下午5:50:27
  *
  */
 public class ConsumerToKuduApp {
@@ -85,12 +86,34 @@ public class ConsumerToKuduApp {
 			@Override
 			public void run() {
 				log.warn("开始运行进程退出钩子函数。");
+				int maxCnt = 10;
+				int cnt = 0;
 				while (!app.getDownSignal()) {
 					try {
-						log.error("监测到中断进程信号，设置服务为下线！");
+						if (cnt >= maxCnt) {
+							// 停止状态上报线程
+							heartRunnable.setRun(false);
+							heartRunnable.setSvrStatus(0);
+							heartThread.interrupt();
+							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
+									agentSvrType, 0, "监测到服务中断信号，退出服务！");
+							log.info("设置服务状态为下线：" + ret);
+							ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+									"设置服务状态为下线：" + ret + "，shutdown_singal：" + app.getDownSignal() + "，ERR_HANDLED_CNT："
+											+ ERR_HANDLED_CNT);
+							log.info("上报告警结果：" + ret);
+							app.setShutdown(true);
+							app.setDownSignal(true);
+							log.error("监测到服务中断信号，退出服务！");
+							Runtime.getRuntime().exit(0);
+							System.exit(0);
+							break;
+						}
 						app.setShutdown(true);
+						log.error("监测到中断进程信号，设置服务为下线！" + app.isShutdown());
 						Thread.sleep(2 * 1000);
-					} catch (InterruptedException e) {
+						cnt++;
+					} catch (Exception e) {
 						log.error(e.getMessage(), e);
 					}
 				}

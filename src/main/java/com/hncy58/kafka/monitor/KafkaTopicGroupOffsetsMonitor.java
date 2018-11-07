@@ -81,28 +81,49 @@ public class KafkaTopicGroupOffsetsMonitor {
 		System.out.println("Uage:\n\t" + KafkaTopicGroupOffsetsMonitor.class.getName() + " kafkaServers fetchInterval");
 		System.out.println("eg:\n\t" + KafkaTopicGroupOffsetsMonitor.class.getName() + " 192.168.144.128:9092 5");
 
-		KafkaTopicGroupOffsetsMonitor monitor = new KafkaTopicGroupOffsetsMonitor();
+		KafkaTopicGroupOffsetsMonitor app = new KafkaTopicGroupOffsetsMonitor();
 
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override
 			public void run() {
 				log.warn("开始运行进程退出钩子函数。");
-				while (!monitor.getDownSignal()) {
+				int maxCnt = 10;
+				int cnt = 0;
+				while (!app.getDownSignal()) {
 					try {
-						log.error("监测到中断进程信号，设置服务为下线！");
-						monitor.setShutdown(true);
+						if (cnt >= maxCnt) {
+							// 停止状态上报线程
+							heartRunnable.setRun(false);
+							heartRunnable.setSvrStatus(0);
+							heartThread.interrupt();
+							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
+									agentSvrType, 0, "监测到服务中断信号，退出服务！");
+							log.info("设置服务状态为下线：" + ret);
+							ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+									"设置服务状态为下线：" + ret + "，shutdown_singal：" + app.getDownSignal());
+							log.info("上报告警结果：" + ret);
+							app.setShutdown(true);
+							app.setDownSignal(true);
+							log.error("监测到服务中断信号，退出服务！");
+							Runtime.getRuntime().exit(0);
+							System.exit(0);
+							break;
+						}
+						app.setShutdown(true);
+						log.error("监测到中断进程信号，设置服务为下线！" + app.isShutdown());
 						Thread.sleep(2 * 1000);
-					} catch (InterruptedException e) {
+						cnt++;
+					} catch (Exception e) {
 						log.error(e.getMessage(), e);
 					}
 				}
 			}
 		}, "ShutdownHookThread"));
 
-		monitor.init(args);
-		monitor.doRun();
+		app.init(args);
+		app.doRun();
 		log.error("初始化服务失败，请检查相关配置是否正确！");
-		monitor.setDownSignal(true);
+		app.setDownSignal(true);
 		// Runtime.getRuntime().exit(2);
 		// System.exit(2);
 	}
@@ -136,6 +157,9 @@ public class KafkaTopicGroupOffsetsMonitor {
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 					log.error("捕获到异常停止状态，直接退出进程！");
+					setShutdown(true);
+					setDownSignal(true);
+					Runtime.getRuntime().exit(0);
 					System.exit(1);
 				}
 				break;
