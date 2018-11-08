@@ -8,9 +8,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.io.IOUtils;
@@ -161,6 +163,7 @@ public class KuduHandler implements Handler {
 			return true;
 
 		Map<String, KuduTable> kudutables = new HashMap<>();
+		Set<String> existTables = new HashSet<>();
 		log.info("start init kudu session.");
 		KuduSession session = client.newSession();
 		session.setFlushMode(FLUSH_MODE);
@@ -211,16 +214,19 @@ public class KuduHandler implements Handler {
 			dbId = schema.getString("db_id");
 			tblId = Utils.isEmpty(dbId) ? tblId : dbId + ":" + tblId;
 
-			if (!client.tableExists(tblId)) {
-				boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
-						"Kudu表：" + tblId + "不存在，数据被忽略，data:" + value);
-				log.error("Kudu表:{}不存在，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
-				continue;
+			// TODO 是否需要这一步？
+			if(! existTables.contains(tblId)) {
+				if (!client.tableExists(tblId)) {
+					boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+							"Kudu表：" + tblId + "不存在，数据被忽略，data:" + value);
+					log.error("Kudu表:{}不存在，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+					continue;
+				}
+				existTables.add(tblId);
+				log.info("add new exists kudu table to existTables cache.");
 			}
 
-			// TODO
 			kuduSchema = kuduTableSchemas.get(tblId);
-
 			if(Utils.isEmpty(kuduSchema)) {
 				boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
 						"Kudu表：" + tblId + "对应Schema不存在或者未加载成功，数据被忽略，data:" + value);
@@ -230,9 +236,9 @@ public class KuduHandler implements Handler {
 			
 			log.debug("start init kudu table.");
 			if(kudutables.containsKey(tblId)) {
-				table = client.openTable(tblId);
+				table = kudutables.get(tblId);
 			} else {
-				log.info("add new kudu table to kudutables cache.");
+				log.info("add new kudu table instance to kudutables cache.");
 				table = client.openTable(tblId);
 				kudutables.put(tblId, table);
 			}

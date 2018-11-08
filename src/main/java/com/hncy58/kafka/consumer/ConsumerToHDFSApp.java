@@ -249,6 +249,8 @@ public class ConsumerToHDFSApp {
 	 */
 	private void init(String[] args) {
 
+		subscribeToipcs.forEach(topic -> log.info("subscribe topic ----------> {}", topic));
+		
 		try {
 			log.info("usage:" + ConsumerToHDFSApp.class.getName()
 					+ " kafkaServers kafkaTopicGroupName kafkaToipcs FETCH_MILISECONDS MIN_BATCH_SIZE MIN_SLEEP_CNT SLEEP_SECONDS");
