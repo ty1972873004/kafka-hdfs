@@ -8,4 +8,5 @@ encoding//src/main/resources/prod/db_dbcp.properties=UTF-8
 encoding//src/main/resources/test/db_dbcp.properties=UTF-8
 encoding//src/test/java=UTF-8
 encoding//src/test/java/com/hncy58/kafka/app.properties=UTF-8
+encoding//src/test/resources=UTF-8
 encoding/<project>=UTF-8
