@@ -198,9 +198,9 @@ public class ConsumerToHDFSApp {
 						ConsumerRecords<String, String> records = consumer.poll(FETCH_MILISECONDS);
 						int cnt = records.count();
 						if (cnt > 0) {
-							log.error("current polled " + cnt + " records.");
+							log.info("current polled " + cnt + " records.");
 							TOTAL_MSG_CNT += cnt;
-							log.error("total polled " + TOTAL_MSG_CNT + " records.");
+							log.info("total polled " + TOTAL_MSG_CNT + " records.");
 							for (ConsumerRecord<String, String> record : records) {
 								buffer.add(record);
 							}
@@ -211,11 +211,11 @@ public class ConsumerToHDFSApp {
 								buffer.clear();
 								Thread.sleep(500); //
 							} else {
-								log.error("current buffer remains " + buffer.size() + " records.");
+								log.info("current buffer remains " + buffer.size() + " records.");
 								sleepdCnt += 1;
 							}
 						} else {
-							log.error("no data to poll, sleep " + SLEEP_SECONDS + " s. buff size:" + buffer.size());
+							log.info("no data to poll, sleep " + SLEEP_SECONDS + " s. buff size:" + buffer.size());
 							if ((sleepdCnt >= MIN_SLEEP_CNT && !buffer.isEmpty())) {
 								sleepdCnt = 0;
 								doHandle(buffer);
@@ -249,6 +249,8 @@ public class ConsumerToHDFSApp {
 	 */
 	private void init(String[] args) {
 
+		subscribeToipcs.forEach(topic -> log.info("subscribe topic ----------> {}", topic));
+		
 		try {
 			log.info("usage:" + ConsumerToHDFSApp.class.getName()
 					+ " kafkaServers kafkaTopicGroupName kafkaToipcs FETCH_MILISECONDS MIN_BATCH_SIZE MIN_SLEEP_CNT SLEEP_SECONDS");

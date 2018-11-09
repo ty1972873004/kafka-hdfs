@@ -169,7 +169,7 @@ public class HBaseBatchDeleteApp {
 						+ batchDeletes.size());
 			}
 
-			log.warn("hbase table {} delete finished. start:{},end:{},total:{}", tableName, startTime, endTime,
+			log.info("hbase table {} delete finished. start:{},end:{},total:{}", tableName, startTime, endTime,
 					list.size());
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);

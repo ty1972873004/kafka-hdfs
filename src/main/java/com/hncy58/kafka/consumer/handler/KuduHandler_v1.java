@@ -20,6 +20,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kudu.ColumnSchema;
 import org.apache.kudu.Schema;
 import org.apache.kudu.Type;
+import org.apache.kudu.client.CreateTableOptions;
 import org.apache.kudu.client.Delete;
 import org.apache.kudu.client.KuduClient;
 import org.apache.kudu.client.KuduException;
@@ -34,62 +35,63 @@ import org.slf4j.LoggerFactory;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.util.TypeUtils;
+import com.hncy58.ds.DSPoolUtil;
 import com.hncy58.ds.ServerStatusReportUtil;
 import com.hncy58.util.Utils;
 
 /**
  * 写入数据至Kudu表处理器
- * 
- * @author tokings
- * @company hncy58 湖南长银五八
- * @website http://www.hncy58.com
+ * @author	tokings
+ * @company	hncy58	湖南长银五八
+ * @website	http://www.hncy58.com
  * @version 1.0
- * @date 2018年11月6日 下午5:48:34
+ * @date	2018年11月6日 下午5:48:34
  *
  */
-public class KuduHandler implements Handler {
+public class KuduHandler_v1 implements Handler {
 
-	private static final Logger log = LoggerFactory.getLogger(KuduHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(KuduHandler_v1.class);
+	private static final String QUERY_SQL = "SELECT * FROM sync_table_schema t where t.table_type = 1 and t.status = 1";
 	private SessionConfiguration.FlushMode FLUSH_MODE = SessionConfiguration.FlushMode.MANUAL_FLUSH;
-	private final static int OPERATION_BATCH = 100000;
+	private final static int OPERATION_BATCH = 10000;
 
 	private String agentSvrName;
 	private String agentSvrGroup;
 	private int agentSvrType;
 
 	private String kuduMaster = "localhsot:7051";
+	private int numReplicas = 1;
+	private int buckets = 16;
 	private String localFileNamePrefix = "unHadledData";
-	private String kuduTablePrefix = "impala::kudu_";
-	private String delStatusColName = "bigdata_del_status";
-	private String syncTimeColname = "bigdata_sync_time";
 
 	private static KuduClient client;
 
+	private List<Map<String, Object>> tables = new ArrayList<>();
 	private Map<String, Schema> kuduTableSchemas = new HashMap<>();
 
-	public KuduHandler(String agentSvrName, String agentSvrGroup, int agentSvrType, String kuduMaster,
-			String localFileNamePrefix, String tblPrefix) throws Exception {
+	public KuduHandler_v1(String agentSvrName, String agentSvrGroup, int agentSvrType, String kuduMaster, int numReplicas,
+			int buckets, String localFileNamePrefix) throws Exception {
 		super();
 		this.agentSvrName = agentSvrName;
 		this.agentSvrGroup = agentSvrGroup;
 		this.agentSvrType = agentSvrType;
 		this.kuduMaster = kuduMaster;
+		this.numReplicas = numReplicas;
+		this.buckets = buckets;
 		this.localFileNamePrefix = localFileNamePrefix;
-		this.kuduTablePrefix = tblPrefix;
 
 		init();
 	}
 
 	/**
-	 * 初始化
-	 * 
+	 *  初始化
 	 * @throws Exception
 	 */
 	private void init() throws Exception {
 
 		client = new KuduClient.KuduClientBuilder(kuduMaster).build();
 		client.listTabletServers().getTabletServersList().forEach(server -> {
-			log.info("kudu cluster server node -> " + server);
+			System.out.println("kudu cluster server node -> " + server);
 		});
 
 		initKuduTables();
@@ -97,15 +99,60 @@ public class KuduHandler implements Handler {
 
 	/**
 	 * 初始化待同步表结构
-	 * 
 	 * @throws Exception
 	 */
 	private void initKuduTables() throws Exception {
-		List<String> tables = client.getTablesList().getTablesList();
-		for (String tableName : tables) {
-			log.info("start to load {}'s schema.", tableName);
-			Schema kuduSchema = client.openTable(tableName).getSchema();
-			kuduTableSchemas.put(tableName, kuduSchema);
+		tables = DSPoolUtil.query(QUERY_SQL, new Object[] {});
+
+		for (Map<String, Object> tableMap : tables) {
+			String dbName = Utils.toString(tableMap.get("db_id"));
+			String tableName = Utils.toString(tableMap.get("table_id"));
+			String schema = Utils.toString(tableMap.get("schema_json"));
+			String realTableName = Utils.isEmpty(dbName) ? tableName : dbName + ":" + tableName;
+			JSONArray schemaJson = JSONObject.parseArray(schema);
+			List<ColumnSchema> columns = new ArrayList<ColumnSchema>();
+			List<String> hashKeys = new ArrayList<>();
+			List<String> rangeKeys = new ArrayList<>();
+
+			schemaJson.forEach(field -> {
+				if (field instanceof JSONObject) {
+					JSONObject fieldJson = (JSONObject) field;
+					String name = fieldJson.getString("name");
+					String type = fieldJson.getString("type");
+					boolean nullable = fieldJson.getBooleanValue("nullable");
+
+					if (fieldJson.containsKey("pkType")) {
+						String pkType = fieldJson.getString("pkType");
+						switch (pkType) {
+						case "rangePartition":
+							rangeKeys.add(name);
+							break;
+						case "hashPartition":
+							hashKeys.add(name);
+							break;
+						default:
+							break;
+						}
+						columns.add(new ColumnSchema.ColumnSchemaBuilder(name, Type.valueOf(type)).key(true).nullable(nullable).build());
+					} else {
+						columns.add(new ColumnSchema.ColumnSchemaBuilder(name, Type.valueOf(type)).build());
+					}
+				}
+			});
+
+			Schema kuduSchema = new Schema(columns);
+			kuduTableSchemas.put(realTableName, kuduSchema);
+			// 如果表不存在则创建表
+			if (!client.tableExists(realTableName)) {
+				CreateTableOptions createOptions = new CreateTableOptions().setNumReplicas(numReplicas);
+				if (!rangeKeys.isEmpty()) {
+					createOptions.setRangePartitionColumns(rangeKeys);
+				}
+				if (!hashKeys.isEmpty()) {
+					createOptions.addHashPartitions(hashKeys, buckets);
+				}
+				client.createTable(realTableName, kuduSchema, createOptions);
+			}
 		}
 	}
 
@@ -116,6 +163,7 @@ public class KuduHandler implements Handler {
 			return true;
 
 		Map<String, KuduTable> kudutables = new HashMap<>();
+		Set<String> existTables = new HashSet<>();
 		log.info("start init kudu session.");
 		KuduSession session = client.newSession();
 		session.setFlushMode(FLUSH_MODE);
@@ -126,7 +174,6 @@ public class KuduHandler implements Handler {
 		Schema kuduSchema;
 		String tblId;
 		String dbId;
-		long syncTime;
 		JSONObject schema;
 		JSONArray jsonDataArr;
 		JSONObject json = null;
@@ -135,11 +182,7 @@ public class KuduHandler implements Handler {
 		String pkCols;
 		ArrayList<String> rowKeys = new ArrayList<>();
 		KuduTable table;
-		ColumnSchema colSchema = null;
-		Set<String> unExistTable = new HashSet<>();
-		Set<Type> ignoredTypes = new HashSet<>(Arrays.asList(Type.DOUBLE, Type.FLOAT, Type.INT8, Type.INT16, Type.INT32,
-				Type.INT64, Type.BOOL, Type.UNIXTIME_MICROS));
-
+		
 		log.info("start parse kafka data.");
 		long start = System.currentTimeMillis();
 		for (ConsumerRecord<String, String> r : data) {
@@ -152,7 +195,7 @@ public class KuduHandler implements Handler {
 			try {
 				json = JSONObject.parseObject(value);
 			} catch (Exception e) {
-				log.error(e.getMessage(), e);
+				log.warn(e.getMessage(), e);
 			}
 
 			if (json == null || json.isEmpty() || !json.containsKey("schema") || !json.containsKey("data")) {
@@ -169,19 +212,30 @@ public class KuduHandler implements Handler {
 
 			tblId = schema.getString("tbl_id");
 			dbId = schema.getString("db_id");
-			syncTime = schema.getLong("time");
-			tblId = Utils.isEmpty(dbId) ? tblId : kuduTablePrefix + dbId + "." + tblId;
+			tblId = Utils.isEmpty(dbId) ? tblId : dbId + ":" + tblId;
 
-			if (!kuduTableSchemas.containsKey(tblId)) {
-				unExistTable.add(tblId);
-				log.warn("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略 ,data:\n{}", tblId, value);
-				continue;
+			// TODO 是否需要这一步？
+			if(! existTables.contains(tblId)) {
+				if (!client.tableExists(tblId)) {
+					boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+							"Kudu表：" + tblId + "不存在，数据被忽略，data:" + value);
+					log.warn("Kudu表:{}不存在，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+					continue;
+				}
+				existTables.add(tblId);
+				log.info("add new exists kudu table to existTables cache.");
 			}
 
 			kuduSchema = kuduTableSchemas.get(tblId);
-
+			if(Utils.isEmpty(kuduSchema)) {
+				boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+						"Kudu表：" + tblId + "对应Schema不存在或者未加载成功，数据被忽略，data:" + value);
+				log.warn("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+				continue;
+			}
+			
 			log.debug("start init kudu table.");
-			if (kudutables.containsKey(tblId)) {
+			if(kudutables.containsKey(tblId)) {
 				table = kudutables.get(tblId);
 			} else {
 				log.info("add new kudu table instance to kudutables cache.");
@@ -201,7 +255,7 @@ public class KuduHandler implements Handler {
 			long parseListStart = System.currentTimeMillis();
 			if ("i".equals(oprType) || "u".equals(oprType)) {
 				List<Upsert> listUpsert = new ArrayList<Upsert>();
-				for (Object dataObj : jsonDataArr) {
+				for(Object dataObj : jsonDataArr) {
 					JSONObject dataJson = null;
 					if (dataObj instanceof JSONObject) {
 						dataJson = (JSONObject) dataObj;
@@ -218,61 +272,40 @@ public class KuduHandler implements Handler {
 					if (idBuf.length() > 0) {
 						Upsert upsert = table.newUpsert();
 						PartialRow row = upsert.getRow();
-
-						// 判断是否含同步时间状态字段
-						try {
-							row.addLong(syncTimeColname, syncTime);
-						} catch (Exception e) {
-							log.debug("表没有同步时间字段," + e.getMessage(), e);
-						}
-
-						for (Entry<String, Object> entry : dataJson.entrySet()) {
-							try {
-								colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
-							} catch (Exception e) {
-								log.warn("表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
+						for(Entry<String, Object> entry : dataJson.entrySet()) {
+							ColumnSchema colSchema = kuduSchema.getColumn(entry.getKey());
+							if (colSchema == null)
 								continue;
-							}
-							// if (entry.getValue() == null) {
-							// row.setNull(entry.getKey().toLowerCase());
-							// continue;
-							// }
-							if (entry.getValue() == null || (Utils.isEmpty(entry.getValue())
-									&& ignoredTypes.contains(colSchema.getType()))) {
-								row.setNull(entry.getKey().toLowerCase());
-								continue;
-							}
-
 							switch (colSchema.getType()) {
 							case BINARY:
-								row.addBinary(entry.getKey().toLowerCase(), TypeUtils.castToBytes(entry.getValue()));
+								row.addBinary(entry.getKey(), TypeUtils.castToBytes(entry.getValue()));
 								break;
 							case BOOL:
-								row.addBoolean(entry.getKey().toLowerCase(), TypeUtils.castToBoolean(entry.getValue()));
+								row.addBoolean(entry.getKey(), TypeUtils.castToBoolean(entry.getValue()));
 								break;
 							case DOUBLE:
-								row.addDouble(entry.getKey().toLowerCase(), TypeUtils.castToDouble(entry.getValue()));
+								row.addDouble(entry.getKey(), TypeUtils.castToDouble(entry.getValue()));
 								break;
 							case FLOAT:
-								row.addFloat(entry.getKey().toLowerCase(), TypeUtils.castToFloat(entry.getValue()));
+								row.addFloat(entry.getKey(), TypeUtils.castToFloat(entry.getValue()));
 								break;
 							case INT8:
-								row.addByte(entry.getKey().toLowerCase(), TypeUtils.castToByte(entry.getValue()));
+								row.addByte(entry.getKey(), TypeUtils.castToByte(entry.getValue()));
 								break;
 							case INT16:
-								row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
+								row.addInt(entry.getKey(), TypeUtils.castToInt(entry.getValue()));
 								break;
 							case INT32:
-								row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
+								row.addInt(entry.getKey(), TypeUtils.castToInt(entry.getValue()));
 								break;
 							case INT64:
-								row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
+								row.addLong(entry.getKey(), TypeUtils.castToLong(entry.getValue()));
 								break;
 							case STRING:
-								row.addString(entry.getKey().toLowerCase(), TypeUtils.castToString(entry.getValue()));
+								row.addString(entry.getKey(), TypeUtils.castToString(entry.getValue()));
 								break;
 							case UNIXTIME_MICROS:
-								row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
+								row.addLong(entry.getKey(), TypeUtils.castToLong(entry.getValue()));
 								break;
 							default:
 								break;
@@ -290,62 +323,50 @@ public class KuduHandler implements Handler {
 				}
 			} else if ("d".equals(oprType)) {
 				List<Delete> listDelete = new ArrayList<Delete>();
-				for (Object dataObj : jsonDataArr) {
+				for(Object dataObj : jsonDataArr) {
 					if (dataObj != null && dataObj instanceof JSONObject) {
 					} else {
 						continue;
 					}
 
 					JSONObject rowJson = (JSONObject) dataObj;
+
 					Delete delete = table.newDelete();
 					PartialRow row = delete.getRow();
-
-					// 判断是否含同步时间状态字段
-					try {
-						row.addInt(delStatusColName, 1);
-						row.addLong(syncTimeColname, syncTime);
-					} catch (Exception e) {
-						log.debug("表没有同步时间、删除状态字段," + e.getMessage(), e);
-					}
-
-					for (String key : rowKeys) {
-						try {
-							colSchema = kuduSchema.getColumn(key.toLowerCase());
-						} catch (Exception e) {
-							log.warn("表没有字段:" + key + "," + e.getMessage(), e);
+					for(String key : rowKeys) {
+						ColumnSchema colSchema = kuduSchema.getColumn(key);
+						if (colSchema == null)
 							continue;
-						}
-						
 						switch (colSchema.getType()) {
 						case BINARY:
-							row.addBinary(key.toLowerCase(), rowJson.getBytes(key));
+							row.addBinary(key, rowJson.getBytes(key));
 							break;
 						case BOOL:
-							row.addBoolean(key.toLowerCase(), rowJson.getBoolean(key));
+							row.addBoolean(key, rowJson.getBoolean(key));
 							break;
 						case DOUBLE:
-							row.addDouble(key.toLowerCase(), rowJson.getDouble(key));
+							row.addDouble(key, rowJson.getDouble(key));
 							break;
 						case FLOAT:
-							row.addFloat(key.toLowerCase(), rowJson.getFloat(key));
+							row.addFloat(key, rowJson.getFloat(key));
 							break;
 						case INT8:
-							row.addByte(key.toLowerCase(), rowJson.getByte(key));
+							row.addByte(key, rowJson.getByte(key));
 							break;
 						case INT16:
-							row.addInt(key.toLowerCase(), rowJson.getInteger(key));
+							row.addInt(key, rowJson.getInteger(key));
 							break;
 						case INT32:
-							row.addInt(key.toLowerCase(), rowJson.getInteger(key));
+							row.addInt(key, rowJson.getInteger(key));
 							break;
 						case INT64:
-							row.addLong(key.toLowerCase(), castToLong(rowJson.get(key)));
+							row.addLong(key, rowJson.getLong(key));
 							break;
 						case STRING:
-							row.addString(key.toLowerCase(), rowJson.getString(key));
+							row.addString(key, rowJson.getString(key));
 							break;
 						case UNIXTIME_MICROS:
-							row.addLong(key.toLowerCase(), castToLong(rowJson.get(key)));
+							row.addLong(key, rowJson.getLong(key));
 							break;
 						default:
 							break;
@@ -364,35 +385,14 @@ public class KuduHandler implements Handler {
 			log.debug("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
 		}
 
-		if (!unExistTable.isEmpty()) {
-			boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
-					"Kudu表不存在或者未加载成功，数据被忽略，tableList:" + unExistTable);
-		}
-
 		log.info("parse kafka data finished. used {} ms.", System.currentTimeMillis() - start);
 		doCommit(session, upsertsMap, deletesMap);
 
 		return true;
 	}
 
-	private static Long castToLong(Object date) {
-
-		if (date instanceof Number)
-			return TypeUtils.castToLong(date);
-
-		if (date == null || "".equals(date.toString().trim())) {
-			return null;
-		}
-		String dateStr = date.toString().trim();
-		if (dateStr.length() > 19) {
-			dateStr = dateStr.substring(0, 19);
-		}
-		return TypeUtils.castToLong(dateStr);
-	}
-
 	/**
 	 * 提交数据到Kudu中
-	 * 
 	 * @param session
 	 * @param upsertsMap
 	 * @param deletesMap
@@ -407,33 +407,21 @@ public class KuduHandler implements Handler {
 		try {
 			long start = System.currentTimeMillis();
 			for (Entry<String, List<Upsert>> entry : upsertsMap.entrySet()) {
-				int cnt = 0;
-				log.info("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 				for (Upsert upsert : entry.getValue()) {
 					session.apply(upsert);
-					if(cnt >= OPERATION_BATCH) {
-						session.flush();
-						cnt = 0;
-					}
-					cnt ++;
 				}
 			}
-			log.info("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
+			session.flush();
+			log.error("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
 
 			start = System.currentTimeMillis();
 			for (Entry<String, List<Delete>> entry : deletesMap.entrySet()) {
-				int cnt = 0;
-				log.info("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 				for (Delete delete : entry.getValue()) {
 					session.apply(delete);
-					if(cnt >= OPERATION_BATCH) {
-						session.flush();
-						cnt = 0;
-					}
-					cnt ++;
 				}
 			}
-			log.info("commit delete batch used {} ms.", System.currentTimeMillis() - start);
+			session.flush();
+			log.error("commit delete batch used {} ms.", System.currentTimeMillis() - start);
 
 		} finally {
 			session.flush();
@@ -495,6 +483,14 @@ public class KuduHandler implements Handler {
 
 	public void setKuduMaster(String kuduMaster) {
 		this.kuduMaster = kuduMaster;
+	}
+
+	public int getNumReplicas() {
+		return numReplicas;
+	}
+
+	public void setNumReplicas(int numReplicas) {
+		this.numReplicas = numReplicas;
 	}
 
 	public String getLocalFileNamePrefix() {

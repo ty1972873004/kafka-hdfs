@@ -49,7 +49,7 @@ public class KafkaTopicGroupOffsetsMonitor {
 	Properties kafkaConsumerProps = new Properties();
 	private String kafkaServers = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaServers",
 			"162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092");
-	private int fetchInterval = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "fetchInterval", "10"));
+	private int fetchInterval = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "fetchInterval", "30"));
 	boolean run = false;
 
 	private static boolean shutdown_singal = false;
