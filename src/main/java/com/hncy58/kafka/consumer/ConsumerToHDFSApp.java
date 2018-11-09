@@ -375,7 +375,7 @@ public class ConsumerToHDFSApp {
 	private void handle(List<ConsumerRecord<String, String>> buffer) throws Exception {
 
 		Map<String, StringBuffer> buffMap = new HashMap<>();
-
+		long start = System.currentTimeMillis();
 		try {
 			log.error("start to handle datas -> " + buffer.size());
 			buffer.forEach(record -> {
@@ -420,7 +420,7 @@ public class ConsumerToHDFSApp {
 				}
 			}
 
-			log.error("end handled datas.");
+			log.error("end handled datas. used {} ms.", System.currentTimeMillis() - start);
 		} finally {
 
 		}

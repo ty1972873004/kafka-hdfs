@@ -223,14 +223,14 @@ public class KuduHandler implements Handler {
 						try {
 							row.addLong(syncTimeColname, syncTime);
 						} catch (Exception e) {
-							log.debug("表没有同步时间字段," + e.getMessage(), e);
+							log.debug(tblId + "表没有同步时间字段," + e.getMessage(), e);
 						}
 
 						for (Entry<String, Object> entry : dataJson.entrySet()) {
 							try {
 								colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
 							} catch (Exception e) {
-								log.warn("表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
+								log.warn(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
 								continue;
 							}
 							// if (entry.getValue() == null) {
@@ -305,14 +305,14 @@ public class KuduHandler implements Handler {
 						row.addInt(delStatusColName, 1);
 						row.addLong(syncTimeColname, syncTime);
 					} catch (Exception e) {
-						log.debug("表没有同步时间、删除状态字段," + e.getMessage(), e);
+						log.debug(tblId + "表没有同步时间、删除状态字段," + e.getMessage(), e);
 					}
 
 					for (String key : rowKeys) {
 						try {
 							colSchema = kuduSchema.getColumn(key.toLowerCase());
 						} catch (Exception e) {
-							log.warn("表没有字段:" + key + "," + e.getMessage(), e);
+							log.warn(tblId + "表没有字段:" + key + "," + e.getMessage(), e);
 							continue;
 						}
 						
@@ -361,7 +361,7 @@ public class KuduHandler implements Handler {
 					deletesMap.put(tblId, listDelete);
 				}
 			}
-			log.debug("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
+			log.error("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
 		}
 
 		if (!unExistTable.isEmpty()) {
@@ -408,7 +408,7 @@ public class KuduHandler implements Handler {
 			long start = System.currentTimeMillis();
 			for (Entry<String, List<Upsert>> entry : upsertsMap.entrySet()) {
 				int cnt = 0;
-				log.info("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
+				log.error("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 				for (Upsert upsert : entry.getValue()) {
 					session.apply(upsert);
 					if(cnt >= OPERATION_BATCH) {
@@ -418,12 +418,12 @@ public class KuduHandler implements Handler {
 					cnt ++;
 				}
 			}
-			log.info("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
+			log.error("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
 
 			start = System.currentTimeMillis();
 			for (Entry<String, List<Delete>> entry : deletesMap.entrySet()) {
 				int cnt = 0;
-				log.info("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
+				log.error("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 				for (Delete delete : entry.getValue()) {
 					session.apply(delete);
 					if(cnt >= OPERATION_BATCH) {
@@ -433,7 +433,7 @@ public class KuduHandler implements Handler {
 					cnt ++;
 				}
 			}
-			log.info("commit delete batch used {} ms.", System.currentTimeMillis() - start);
+			log.error("commit delete batch used {} ms.", System.currentTimeMillis() - start);
 
 		} finally {
 			session.flush();
