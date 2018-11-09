@@ -181,9 +181,9 @@ public class ConsumerToKuduApp {
 						ConsumerRecords<String, String> records = consumer.poll(fetchMiliseconds);
 						int cnt = records.count();
 						if (cnt > 0) {
-							log.error("current polled " + cnt + " records.");
+							log.info("current polled " + cnt + " records.");
 							TOTAL_MSG_CNT += cnt;
-							log.error("total polled " + TOTAL_MSG_CNT + " records.");
+							log.info("total polled " + TOTAL_MSG_CNT + " records.");
 							for (ConsumerRecord<String, String> record : records) {
 								buffer.add(record);
 							}
@@ -194,11 +194,11 @@ public class ConsumerToKuduApp {
 								buffer.clear();
 								Thread.sleep(500); //
 							} else {
-								log.error("current buffer remains " + buffer.size() + " records.");
+								log.info("current buffer remains " + buffer.size() + " records.");
 								sleepdCnt += 1;
 							}
 						} else {
-							log.error("no data to poll, sleep " + sleepSeconds + " s. buff size:" + buffer.size());
+							log.info("no data to poll, sleep " + sleepSeconds + " s. buff size:" + buffer.size());
 							if ((sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
 								sleepdCnt = 0;
 								doHandle(buffer);

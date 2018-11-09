@@ -145,7 +145,7 @@ public class KuduHandler implements Handler {
 		for (ConsumerRecord<String, String> r : data) {
 			value = r.value();
 			if (StringUtils.isEmpty(value)) {
-				log.error("data value is null, ignored, record:{}", r);
+				log.warn("data value is null, ignored, record:{}", r);
 				continue;
 			}
 
@@ -156,14 +156,14 @@ public class KuduHandler implements Handler {
 			}
 
 			if (json == null || json.isEmpty() || !json.containsKey("schema") || !json.containsKey("data")) {
-				log.error("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
+				log.warn("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
 				continue;
 			}
 
 			schema = json.getJSONObject("schema");
 			jsonDataArr = json.getJSONArray("data");
 			if (jsonDataArr.isEmpty()) {
-				log.error("json value data field is null, ignored, record:{}", r);
+				log.warn("json value data field is null, ignored, record:{}", r);
 				continue;
 			}
 
@@ -206,7 +206,7 @@ public class KuduHandler implements Handler {
 					if (dataObj instanceof JSONObject) {
 						dataJson = (JSONObject) dataObj;
 					} else {
-						log.error("data child is not correct json :{}", dataObj);
+						log.warn("data child is not correct json :{}", dataObj);
 						continue;
 					}
 
@@ -230,7 +230,7 @@ public class KuduHandler implements Handler {
 							try {
 								colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
 							} catch (Exception e) {
-								log.error("表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
+								log.warn("表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
 								continue;
 							}
 							// if (entry.getValue() == null) {
@@ -312,7 +312,7 @@ public class KuduHandler implements Handler {
 						try {
 							colSchema = kuduSchema.getColumn(key.toLowerCase());
 						} catch (Exception e) {
-							log.error("表没有字段:" + key + "," + e.getMessage(), e);
+							log.warn("表没有字段:" + key + "," + e.getMessage(), e);
 							continue;
 						}
 						
@@ -418,7 +418,7 @@ public class KuduHandler implements Handler {
 					cnt ++;
 				}
 			}
-			log.error("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
+			log.info("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
 
 			start = System.currentTimeMillis();
 			for (Entry<String, List<Delete>> entry : deletesMap.entrySet()) {
@@ -433,7 +433,7 @@ public class KuduHandler implements Handler {
 					cnt ++;
 				}
 			}
-			log.error("commit delete batch used {} ms.", System.currentTimeMillis() - start);
+			log.info("commit delete batch used {} ms.", System.currentTimeMillis() - start);
 
 		} finally {
 			session.flush();

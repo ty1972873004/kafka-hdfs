@@ -16,9 +16,13 @@ import java.util.Properties;
 
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.hadoop.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DSPoolUtil {
 
+	private static final Logger log = LoggerFactory.getLogger(DSPoolUtil.class);
+	
 	private static BasicDataSource dataSource = new BasicDataSource();
 
 	// 配置数据源
@@ -36,7 +40,7 @@ public class DSPoolUtil {
 			props.load(is);
 //			props.forEach((k, v) -> System.out.println(k + ":" + v));
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.error(e.getMessage(), e);
 		} finally {
 			IOUtils.closeStream(is);
 		}
@@ -59,7 +63,7 @@ public class DSPoolUtil {
 		try {
 			conn = dataSource.getConnection();
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.error(e.getMessage(), e);
 		}
 		return conn;
 	}
@@ -70,7 +74,7 @@ public class DSPoolUtil {
 				// 关闭存储查询结果的ResultSet对象
 				rs.close();
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.error(e.getMessage(), e);
 			}
 			rs = null;
 		}
@@ -78,7 +82,7 @@ public class DSPoolUtil {
 			try {
 				st.close();
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.error(e.getMessage(), e);
 			}
 		}
 		if (conn != null) {
@@ -86,7 +90,7 @@ public class DSPoolUtil {
 				// 将Connection连接对象还给数据库连接池
 				conn.close();
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.error(e.getMessage(), e);
 			}
 		}
 	}

@@ -188,25 +188,25 @@ public class KuduHandler_v1 implements Handler {
 		for (ConsumerRecord<String, String> r : data) {
 			value = r.value();
 			if (StringUtils.isEmpty(value)) {
-				log.error("data value is null, ignored, record:{}", r);
+				log.warn("data value is null, ignored, record:{}", r);
 				continue;
 			}
 
 			try {
 				json = JSONObject.parseObject(value);
 			} catch (Exception e) {
-				log.error(e.getMessage(), e);
+				log.warn(e.getMessage(), e);
 			}
 
 			if (json == null || json.isEmpty() || !json.containsKey("schema") || !json.containsKey("data")) {
-				log.error("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
+				log.warn("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
 				continue;
 			}
 
 			schema = json.getJSONObject("schema");
 			jsonDataArr = json.getJSONArray("data");
 			if (jsonDataArr.isEmpty()) {
-				log.error("json value data field is null, ignored, record:{}", r);
+				log.warn("json value data field is null, ignored, record:{}", r);
 				continue;
 			}
 
@@ -219,7 +219,7 @@ public class KuduHandler_v1 implements Handler {
 				if (!client.tableExists(tblId)) {
 					boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
 							"Kudu表：" + tblId + "不存在，数据被忽略，data:" + value);
-					log.error("Kudu表:{}不存在，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+					log.warn("Kudu表:{}不存在，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
 					continue;
 				}
 				existTables.add(tblId);
@@ -230,7 +230,7 @@ public class KuduHandler_v1 implements Handler {
 			if(Utils.isEmpty(kuduSchema)) {
 				boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
 						"Kudu表：" + tblId + "对应Schema不存在或者未加载成功，数据被忽略，data:" + value);
-				log.error("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
+				log.warn("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略,alarm:{} ,data:{}", tblId, ret, value);
 				continue;
 			}
 			
@@ -260,7 +260,7 @@ public class KuduHandler_v1 implements Handler {
 					if (dataObj instanceof JSONObject) {
 						dataJson = (JSONObject) dataObj;
 					} else {
-						log.error("data child is not correct json :{}", dataObj);
+						log.warn("data child is not correct json :{}", dataObj);
 						continue;
 					}
 

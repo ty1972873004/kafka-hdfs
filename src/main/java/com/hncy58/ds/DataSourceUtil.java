@@ -7,6 +7,7 @@ import javax.sql.DataSource;
 
 import org.apache.commons.dbcp2.BasicDataSource;
 
+@Deprecated
 public class DataSourceUtil {
 
 	// 持有一个静态的数据库连接池对象

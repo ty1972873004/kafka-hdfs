@@ -60,7 +60,7 @@ public class HBaseHandler implements Handler {
 		data.forEach(r -> {
 			String value = r.value();
 			if (StringUtils.isEmpty(value)) {
-				log.error("data value is null, ignored, record:{}", r);
+				log.warn("data value is null, ignored, record:{}", r);
 				return;
 			}
 
@@ -72,14 +72,14 @@ public class HBaseHandler implements Handler {
 			}
 
 			if (json == null || json.isEmpty() || !json.containsKey("schema") || !json.containsKey("data")) {
-				log.error("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
+				log.warn("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
 				return;
 			}
 
 			JSONObject schema = json.getJSONObject("schema");
 			JSONArray jsonData = json.getJSONArray("data");
 			if (jsonData.isEmpty()) {
-				log.error("json value data field is null, ignored, record:{}", r);
+				log.warn("json value data field is null, ignored, record:{}", r);
 				return;
 			}
 
@@ -104,7 +104,7 @@ public class HBaseHandler implements Handler {
 					if (dataObj instanceof JSONObject) {
 						dataJson = (JSONObject) dataObj;
 					} else {
-						log.error("data child is not correct json :{}", dataObj);
+						log.warn("data child is not correct json :{}", dataObj);
 						return;
 					}
 					
@@ -200,7 +200,7 @@ public class HBaseHandler implements Handler {
 		long endOffset = data.get(data.size() - 1).offset();
 		Map<String, StringBuffer> buffMap = new HashMap<>();
 
-		log.error("start to store datas to local -> " + data.size());
+		log.warn("start to store datas to local -> " + data.size());
 		data.forEach(record -> {
 			String tmpStr = (record.timestamp() + "," + record.partition() + "," + record.offset() + "," + record.key()
 					+ "," + record.value() + "\n");
@@ -233,7 +233,7 @@ public class HBaseHandler implements Handler {
 			}
 		}
 
-		log.error("end stored datas to local.");
+		log.warn("end stored datas to local.");
 	}
 
 	public String getZkServers() {

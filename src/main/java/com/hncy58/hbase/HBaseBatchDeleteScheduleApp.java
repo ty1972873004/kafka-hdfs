@@ -104,7 +104,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override
 			public void run() {
-				log.warn("开始运行进程退出钩子函数。");
+				log.error("开始运行进程退出钩子函数。");
 				while (!getDownSignal()) {
 					try {
 						log.error("监测到中断进程信号，设置服务为下线！");
@@ -151,7 +151,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 			}
 
 			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 1, "心跳上报");
-			log.warn("update agent svr status -> {}", ret);
+			log.info("update agent svr status -> {}", ret);
 		}
 	}
 
@@ -248,7 +248,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 						+ batchDeletes.size());
 			}
 
-			log.warn("hbase table {} delete finished. start:{},end:{},total:{}", realTable, minTime, maxTime,
+			log.info("hbase table {} delete finished. start:{},end:{},total:{}", realTable, minTime, maxTime,
 					list.size());
 			DSPoolUtil.update(INSERT_SQL, null, db, tableName, 1, new Date(minTime), new Date(maxTime), list.size(),
 					"success");
