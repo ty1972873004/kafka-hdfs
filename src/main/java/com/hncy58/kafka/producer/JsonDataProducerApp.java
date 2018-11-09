@@ -22,9 +22,9 @@ import com.alibaba.fastjson.JSONObject;
 
 public class JsonDataProducerApp {
 
-	private static int SEND_BATCH_SIZE = 1;
-	private static int SEND_BATCH_CNT = 10;
-	private static int SEND_BATCH_INTERVAL = 10;
+	private static int SEND_BATCH_SIZE = 5;
+	private static int SEND_BATCH_CNT = 2;
+	private static int SEND_BATCH_INTERVAL = 1;
 
 	public static final String[] ALPHA_ARR = new String[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b",
 			"c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w",
@@ -38,7 +38,7 @@ public class JsonDataProducerApp {
 //	public static String KAFKA_SERVERS = "192.168.144.128:9092";
 	public static String KAFKA_SERVERS = "162.16.6.181:9092,162.16.6.180:9092,162.16.6.182:9092";
 
-	public static boolean USE_TRANSACTION = false;
+	public static boolean USE_TRANSACTION = true;
 
 	private static Producer<String, String> producer;
 

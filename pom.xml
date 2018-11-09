@@ -6,8 +6,22 @@
 	<artifactId>kafka</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 
-	<name>bigdata-gateway</name>
-	<description>bigdata-gateway project for Spring Boot</description>
+	<name>kafka stream comsumer</name>
+	<organization>
+		<name>湖南长银五八</name>
+		<url>http://www.hncy58.com</url>
+	</organization>
+	<developers>
+		<developer>
+			<name>唐顶志</name>
+			<email>296619007@qq.com</email>
+			<properties>
+				<qq>296619007</qq>
+				<wechat>topdon</wechat>
+			</properties>
+		</developer>
+	</developers>
+	<description>kafka streaming data process</description>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -157,22 +171,11 @@
 				<artifactId>maven-jar-plugin</artifactId>
 				<configuration>
 					<archive>
-						  
-						                    
 						<manifest>
-							                        
 							<addClasspath>true</addClasspath>
-							  
-							                        
 							<classpathPrefix>lib/</classpathPrefix>
-							  
-							                        
 							<mainClass>com.hncy58.canal.CanalToKafkaApp</mainClass>
-							  
-							                    
 						</manifest>
-						  
-						                
 					</archive>
 				</configuration>
 			</plugin>

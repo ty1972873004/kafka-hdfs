@@ -63,10 +63,8 @@ public class ConsumerToKuduApp {
 
 	private static String localFileNamePrefix = PropsUtil.getWithDefault(PROP_PREFIX, "localFileNamePrefix",
 			"unHadledData");
+	private static String kuduTablePrefix = PropsUtil.getWithDefault(PROP_PREFIX, "kuduTablePrefix", "impala::kudu_");
 	private static String kuduMaster = PropsUtil.getWithDefault(PROP_PREFIX, "kuduMaster", "localhost:7051");
-	private static int kuduNumReplicas = Integer
-			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "kuduNumReplicas", "1"));
-	private static int kuduBuckets = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "kuduBuckets", "16"));
 
 	private boolean run = false;
 	private boolean shutdown_singal = false;
@@ -312,8 +310,8 @@ public class ConsumerToKuduApp {
 			consumer = new KafkaConsumer<>(props);
 			consumer.subscribe(subscribeToipcs);
 
-			setHandler(new KuduHandler(agentSvrName, agentSvrGroup, agentSvrType, kuduMaster, kuduNumReplicas,
-					kuduBuckets, localFileNamePrefix));
+			setHandler(new KuduHandler(agentSvrName, agentSvrGroup, agentSvrType, kuduMaster, localFileNamePrefix,
+					kuduTablePrefix));
 
 			heartRunnable = new HeartRunnable(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
 					agentDestType);
