@@ -42,8 +42,13 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 	private static int agentSourceType = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSourceType", "0"));
 	private static int agentDestType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentDestType", "0"));
-	private static int heartBeatSleepInterval = Integer
-			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "heartBeatSleepInterval", "10"));
+	private static int svrHeartBeatSleepInterval = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "svrHeartBeatSleepInterval", "10"));
+	private static int maxSvrStatusUpdateFailCnt = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "maxSvrStatusUpdateFailCnt", "2"));
+
+	private static int svrRegFailSleepInterval = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "svrRegFailSleepInterval", "5"));
 
 	private static final String QUERY_SQL = "select * from hbase_tbl_batch_del_cfg where status = 1 ";
 	private static final String INSERT_SQL = "insert into hbase_tbl_batch_del_audit"
@@ -97,11 +102,11 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 		long end = c.getTimeInMillis();
 
 		// for test
-		service.scheduleAtFixedRate(app, delay, 120, TimeUnit.SECONDS);
+		// service.scheduleAtFixedRate(app, delay, 120, TimeUnit.SECONDS);
 
 		// 每天凌晨30分开始调度
-		// delay = end - start + 30 * 60 * 1000;
-		// service.scheduleAtFixedRate(app, delay, 1, TimeUnit.DAYS);
+		delay = end - start + 30 * 60 * 1000;
+		service.scheduleAtFixedRate(app, delay, 1, TimeUnit.DAYS);
 
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override
@@ -325,18 +330,18 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 				maxDeleteBatch = Integer.parseInt(args[2].trim());
 			}
 			int ret = ServerStatusReportUtil.register(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
-					agentDestType, heartBeatSleepInterval);
+					agentDestType, svrHeartBeatSleepInterval, maxSvrStatusUpdateFailCnt);
 
 			while (ret != 1) {
 				log.error("注册服务失败，name:{}, group:{}, svrType:{}, sourceType:{}, destType:{}, 注册结果:{}", agentSvrName,
 						agentSvrGroup, agentSvrType, agentSourceType, agentDestType, ret);
 				try {
-					Thread.sleep(5 * 1000);
+					Thread.sleep(svrRegFailSleepInterval * 1000);
 				} catch (InterruptedException e) {
 					log.error(e.getMessage(), e);
 				}
 				ret = ServerStatusReportUtil.register(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
-						agentDestType, heartBeatSleepInterval);
+						agentDestType, svrHeartBeatSleepInterval, maxSvrStatusUpdateFailCnt);
 			}
 
 			log.info("注册代理服务结果(-1:fail, 1:success, 2:standby) -> {}", ret);
