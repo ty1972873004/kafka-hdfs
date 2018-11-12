@@ -9,6 +9,8 @@ public class HeartRunnable implements Runnable {
 
 	private static final Logger log = LoggerFactory.getLogger("abc");
 	
+	private int sleepInterval = 10;
+	
 	private String agentSvrName;
 	private String agentSvrGroup;
 	private int agentSvrType = 2;
@@ -31,13 +33,14 @@ public class HeartRunnable implements Runnable {
 	}
 
 	public HeartRunnable(String agentSvrName, String agentSvrGroup, int agentSvrType, int agentSourceType,
-			int agentDestType) {
+			int agentDestType, int sleepInterval) {
 		super();
 		this.agentSvrName = agentSvrName;
 		this.agentSvrGroup = agentSvrGroup;
 		this.agentSvrType = agentSvrType;
 		this.agentSourceType = agentSourceType;
 		this.agentDestType = agentDestType;
+		this.sleepInterval = sleepInterval;
 	}
 
 	public String getAgentSvrName() {
@@ -93,7 +96,7 @@ public class HeartRunnable implements Runnable {
 		run = true;
 		while(run) {
 			try {
-				Thread.sleep(10 * 1000);
+				Thread.sleep(sleepInterval * 1000);
 				boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, getSvrStatus(), "心跳上报");
 				log.info("update agent svr status -> {}", ret);
 			} catch (Exception e) {

@@ -40,11 +40,14 @@ public class KafkaTopicGroupOffsetsMonitor {
 
 	private static String agentSvrName = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrName", "kafkaTopicMonitor");
 	private static String agentSvrGroup = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrGroup",
-			"kafka0TopicMonitorGroup");
+			"kafkaTopicMonitorGroup");
 	private static int agentSvrType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrType", "2"));
 	private static int agentSourceType = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSourceType", "0"));
 	private static int agentDestType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentDestType", "0"));
+
+	private static int heartBeatSleepInterval = Integer
+			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "heartBeatSleepInterval", "10"));
 
 	Properties kafkaConsumerProps = new Properties();
 	private String kafkaServers = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaServers",
@@ -325,7 +328,7 @@ public class KafkaTopicGroupOffsetsMonitor {
 			kafkaConsumerProps.put("session.timeout.ms", "30000");
 
 			int ret = ServerStatusReportUtil.register(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
-					agentDestType);
+					agentDestType, heartBeatSleepInterval * 2);
 
 			while (ret != 1) {
 				log.error("注册服务失败，name:{}, group:{}, svrType:{}, sourceType:{}, destType:{}, 注册结果:{}", agentSvrName,
@@ -336,13 +339,13 @@ public class KafkaTopicGroupOffsetsMonitor {
 					log.error(e.getMessage(), e);
 				}
 				ret = ServerStatusReportUtil.register(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
-						agentDestType);
+						agentDestType, heartBeatSleepInterval * 2);
 			}
 
 			log.info("注册代理服务结果(-1:fail, 1:success, 2:standby) -> {}", ret);
 
-			heartRunnable = new HeartRunnable(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType,
-					agentDestType);
+			heartRunnable = new HeartRunnable(agentSvrName, agentSvrGroup, agentSvrType, agentSourceType, agentDestType,
+					heartBeatSleepInterval);
 			heartThread = new Thread(heartRunnable, "agentSvrStatusReportThread");
 			heartThread.start();
 

@@ -1,4 +1,4 @@
-package com.hncy58.hbase;
+package com.hncy58.hdfs;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -30,14 +30,25 @@ import com.hncy58.ds.ServerStatusReportUtil;
 import com.hncy58.util.PropsUtil;
 import com.hncy58.util.Utils;
 
-public class HBaseBatchDeleteScheduleApp implements Runnable {
+/**
+ * HDFS文件定时删除服务
+ * <br>
+ * （暂时不用，后续需要使用再进行开发）
+ * @author tdz
+ * @company hncy58 长银五八
+ * @website http://www.hncy58.com
+ * @version 1.0
+ * @date 2018年11月12日 上午10:06:21
+ */
+@Deprecated
+public class HDFSBatchDeleteScheduleApp implements Runnable {
 
-	private static final Logger log = LoggerFactory.getLogger(HBaseBatchDeleteScheduleApp.class);
+	private static final Logger log = LoggerFactory.getLogger(HDFSBatchDeleteScheduleApp.class);
 
-	private static final String PROP_PREFIX = "hbase-tabledata-delete";
-	private static String agentSvrName = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrName", "hbaseTableDataDelete");
+	private static final String PROP_PREFIX = "hdfs-data-delete";
+	private static String agentSvrName = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrName", "hdfsDataDelete");
 	private static String agentSvrGroup = PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrGroup",
-			"hbaseTableDataDeleteGroup");
+			"hdfsDataDeleteGroup");
 	private static int agentSvrType = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSvrType", "2"));
 	private static int agentSourceType = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "agentSourceType", "0"));
@@ -74,7 +85,7 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 		shutdown = flag;
 	}
 
-	public HBaseBatchDeleteScheduleApp() {
+	public HDFSBatchDeleteScheduleApp() {
 		super();
 	}
 
@@ -82,9 +93,9 @@ public class HBaseBatchDeleteScheduleApp implements Runnable {
 
 		init(args);
 
-		HBaseBatchDeleteScheduleApp app = new HBaseBatchDeleteScheduleApp();
+		HDFSBatchDeleteScheduleApp app = new HDFSBatchDeleteScheduleApp();
 
-		log.info("Usage:\n" + HBaseBatchDeleteScheduleApp.class.getName() + " zkServers zkPort maxDeleteBatch");
+		log.info("Usage:\n" + HDFSBatchDeleteScheduleApp.class.getName() + " zkServers zkPort maxDeleteBatch");
 
 		long delay = 0;
 		Calendar c = Calendar.getInstance();

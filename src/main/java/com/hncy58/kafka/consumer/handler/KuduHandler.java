@@ -361,7 +361,7 @@ public class KuduHandler implements Handler {
 					deletesMap.put(tblId, listDelete);
 				}
 			}
-			log.error("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
+			log.debug("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
 		}
 
 		if (!unExistTable.isEmpty()) {
@@ -369,7 +369,7 @@ public class KuduHandler implements Handler {
 					"Kudu表不存在或者未加载成功，数据被忽略，tableList:" + unExistTable);
 		}
 
-		log.info("parse kafka data finished. used {} ms.", System.currentTimeMillis() - start);
+		log.error("parse kafka data finished. used {} ms.", System.currentTimeMillis() - start);
 		doCommit(session, upsertsMap, deletesMap);
 
 		return true;
