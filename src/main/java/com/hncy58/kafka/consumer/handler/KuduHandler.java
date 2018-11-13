@@ -51,7 +51,7 @@ public class KuduHandler implements Handler {
 
 	private static final Logger log = LoggerFactory.getLogger(KuduHandler.class);
 	private SessionConfiguration.FlushMode FLUSH_MODE = SessionConfiguration.FlushMode.MANUAL_FLUSH;
-	private final static int OPERATION_BATCH = 100000;
+	private final static int OPERATION_BATCH = 1000000;
 
 	private String agentSvrName;
 	private String agentSvrGroup;
@@ -142,6 +142,8 @@ public class KuduHandler implements Handler {
 
 		log.info("start parse kafka data.");
 		long start = System.currentTimeMillis();
+		long tmpCnt = 0L;
+		
 		for (ConsumerRecord<String, String> r : data) {
 			value = r.value();
 			if (StringUtils.isEmpty(value)) {
@@ -280,6 +282,7 @@ public class KuduHandler implements Handler {
 						}
 
 						listUpsert.add(upsert);
+						++ tmpCnt;
 					}
 				}
 
@@ -353,6 +356,7 @@ public class KuduHandler implements Handler {
 					}
 
 					listDelete.add(delete);
+					++ tmpCnt;
 				}
 
 				if (deletesMap.containsKey(tblId)) {
@@ -361,7 +365,7 @@ public class KuduHandler implements Handler {
 					deletesMap.put(tblId, listDelete);
 				}
 			}
-			log.debug("parse list data finished. used {} ms.", System.currentTimeMillis() - parseListStart);
+			log.debug("parse list data finished, used {} ms.", System.currentTimeMillis() - parseListStart);
 		}
 
 		if (!unExistTable.isEmpty()) {
@@ -369,7 +373,7 @@ public class KuduHandler implements Handler {
 					"Kudu表不存在或者未加载成功，数据被忽略，tableList:" + unExistTable);
 		}
 
-		log.error("parse kafka data finished. used {} ms.", System.currentTimeMillis() - start);
+		log.error("parse kafka data finished size:{}, used {} ms.", tmpCnt, System.currentTimeMillis() - start);
 		doCommit(session, upsertsMap, deletesMap);
 
 		return true;
