@@ -105,6 +105,10 @@ public class ConsumerToHBaseApp {
 		log.error("初始化服务失败，请检查相关配置是否正确！");
 		app.setDownSignal(true);
 		try {
+			// 停止状态上报线程
+			heartRunnable.setRun(false);
+			heartRunnable.setSvrStatus(0);
+			heartThread.interrupt();
 			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
 					"监测到服务中断信号，退出服务！");
 			log.info("设置服务状态为下线：" + ret);

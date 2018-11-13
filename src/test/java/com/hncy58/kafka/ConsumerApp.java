@@ -9,10 +9,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 
+import com.hncy58.kafka.producer.JsonDataProducerApp;
+
 public class ConsumerApp {
 
 	static int FETCH_SIZE = 128;
-	static int SLEEP_SECONDS = 5;
+	static int SLEEP_MILLI_SECONDS = 50;
 
 	private static Long total_msg = 0L;
 
@@ -24,7 +26,7 @@ public class ConsumerApp {
 		if (args.length > 0) {
 			props.put("bootstrap.servers", args[0]);
 		} else {
-			props.put("bootstrap.servers", "192.168.144.128:9092");
+			props.put("bootstrap.servers", "162.16.6.181:9092,162.16.6.180:9092,162.16.6.182:9092");
 		}
 
 		if (args.length > 1) {
@@ -34,9 +36,9 @@ public class ConsumerApp {
 		if (args.length > 2) {
 			PRINT_RECEIVED_DATA = Boolean.valueOf(args[2].trim());
 		}
-		
+
 		if (args.length > 3) {
-			SLEEP_SECONDS = Integer.parseInt(args[3].trim());
+			SLEEP_MILLI_SECONDS = Integer.parseInt(args[3].trim());
 		}
 
 		props.put("group.id", "my-group-id");
@@ -52,7 +54,7 @@ public class ConsumerApp {
 		props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
 
-		consumer.subscribe(Arrays.asList(ProducerApp.TOPIC_NAME));
+		consumer.subscribe(Arrays.asList(JsonDataProducerApp.TOPIC_NAME));
 
 		final int minBatchSize = 50000;
 		List<ConsumerRecord<String, String>> buffer = new ArrayList<>();
@@ -74,13 +76,16 @@ public class ConsumerApp {
 						handle(buffer);
 						consumer.commitSync();
 						buffer.clear();
-						
+
 					} else {
 						System.out.println("current buffer remains " + buffer.size() + " records.");
 					}
 				} else {
-					System.out.println("no data to poll, sleep " + SLEEP_SECONDS + " s.");
-					Thread.sleep(SLEEP_SECONDS * 1000);
+					System.out.println("no data to poll, sleep " + SLEEP_MILLI_SECONDS + " s.");
+					Thread.sleep(SLEEP_MILLI_SECONDS);
+					if (!buffer.isEmpty()) {
+						consumer.commitSync();
+					}
 				}
 			}
 		} catch (Exception e) {
