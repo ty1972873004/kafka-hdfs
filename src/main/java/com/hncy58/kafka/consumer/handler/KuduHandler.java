@@ -103,7 +103,7 @@ public class KuduHandler implements Handler {
 	private void initKuduTables() throws Exception {
 		List<String> tables = client.getTablesList().getTablesList();
 		for (String tableName : tables) {
-			log.info("start to load {}'s schema.", tableName);
+			log.error("start to load {}'s schema.", tableName);
 			Schema kuduSchema = client.openTable(tableName).getSchema();
 			kuduTableSchemas.put(tableName, kuduSchema);
 		}

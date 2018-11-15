@@ -98,7 +98,7 @@ public class HeartRunnable implements Runnable {
 			try {
 				Thread.sleep(sleepInterval * 1000);
 				boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, getSvrStatus(), "心跳上报");
-				log.info("update agent svr status -> {}", ret);
+				log.warn("update agent svr status -> {}", ret);
 			} catch (Exception e) {
 				log.error("update agent svr status error:" + e.getMessage(), e);
 				run = false;

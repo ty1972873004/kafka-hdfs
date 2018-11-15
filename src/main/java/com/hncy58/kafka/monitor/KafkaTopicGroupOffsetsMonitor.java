@@ -189,10 +189,8 @@ public class KafkaTopicGroupOffsetsMonitor {
 
 			List<Map<String, Object>> topicGroups = null;
 			final List<Map<String, Object>> monitorTopicGroups = new ArrayList<>();
-			int dateId = 0;
-
+			int dateId = Integer.parseInt(sdf.format(new Date()));
 			try {
-				dateId = Integer.parseInt(sdf.format(new Date()));
 				topicGroups = DSPoolUtil.query(QUERY_ALL_SQL, new Object[] {});
 				monitorTopicGroups.addAll(DSPoolUtil.query(QUERY_MONITOR_SQL, dateId));
 			} catch (SQLException e1) {
@@ -234,7 +232,7 @@ public class KafkaTopicGroupOffsetsMonitor {
 							if (insertMap.containsKey(tp.toString())) {
 								params = insertMap.get(tp.toString());
 								params.add(null);
-								params.add(sdf.format(new Date()));
+								params.add(dateId);
 								params.add(tp.topic());
 								params.add(tp.partition());
 								params.add(group);
@@ -271,7 +269,7 @@ public class KafkaTopicGroupOffsetsMonitor {
 								updateMap.get(tp.toString()).add(tp.partition());
 								updateMap.get(tp.toString()).add(group);
 								// end_offset
-								updateMap.get(tp.toString()).add(sdf.format(new Date()));
+								updateMap.get(tp.toString()).add(dateId);
 							}
 						});
 

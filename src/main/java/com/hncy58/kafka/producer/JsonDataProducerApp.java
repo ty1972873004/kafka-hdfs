@@ -30,11 +30,11 @@ public class JsonDataProducerApp {
 			"c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w",
 			"x", "y", "z" };
 
-	public static final String[] DB_ID_ARR = new String[] {"ccs"};
+	public static final String[] DB_ID_ARR = new String[] {"test"};
 	public static final String[] TBL_ID_ARR = new String[] { "customer", "account", "order"};
 	public static final String[] OPR_TYPE_ARR = new String[] { "i", "u", "d" };
 
-	public static String TOPIC_NAME = "test-topic-2";
+	public static String TOPIC_NAME = "test-topic-4";
 //	public static String KAFKA_SERVERS = "192.168.144.128:9092";
 	public static String KAFKA_SERVERS = "162.16.6.181:9092,162.16.6.180:9092,162.16.6.182:9092";
 

@@ -282,7 +282,7 @@ public class ConsumerToHDFSApp {
 						agentDestType, svrHeartBeatSleepInterval, maxSvrStatusUpdateFailCnt);
 			}
 
-			log.info("注册代理服务结果(-1:fail, 1:success, 2:standby) -> {}", ret);
+			log.error("注册代理服务结果(-1:fail, 1:success, 2:standby) -> {}", ret);
 
 			hadoopConf.set("dfs.support.append", "true");
 			hadoopConf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
@@ -386,7 +386,9 @@ public class ConsumerToHDFSApp {
 
 		Map<String, StringBuffer> buffMap = new HashMap<>();
 		long start = System.currentTimeMillis();
+		FileSystem fs = null;
 		try {
+			fs = FileSystem.get(new URI(HDFS_PREFIX_PATH), hadoopConf);
 			log.error("start to handle datas -> " + buffer.size());
 			buffer.forEach(record -> {
 				String tmpStr = (record.timestamp() + "," + record.partition() + "," + record.offset() + ","
@@ -407,10 +409,8 @@ public class ConsumerToHDFSApp {
 						String hdfs_path = HDFS_PREFIX_PATH + topic + "/"
 								+ new SimpleDateFormat("yyyyMMddHH").format(new Date());
 						Path filePath = new Path(hdfs_path);
-						FileSystem fs = null;
 						OutputStream out = null;
 						try {
-							fs = FileSystem.get(new URI(hdfs_path), hadoopConf);
 							if (!fs.exists(filePath)) {
 								out = fs.create(filePath, false);
 							} else {
@@ -432,7 +432,9 @@ public class ConsumerToHDFSApp {
 
 			log.error("end handled datas. used {} ms.", System.currentTimeMillis() - start);
 		} finally {
-
+			if(fs != null) {
+				fs.close();
+			}
 		}
 	}
 

@@ -236,7 +236,7 @@ public class ConsumerToHBaseApp {
 						agentDestType, svrHeartBeatSleepInterval, maxSvrStatusUpdateFailCnt);
 			}
 
-			log.info("注册代理服务结果(-1:fail, 1:success, 2:standby) -> {}", ret);
+			log.error("注册代理服务结果(-1:fail, 1:success, 2:standby) -> {}", ret);
 
 			hadoopConf.set("dfs.support.append", "true");
 			hadoopConf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");

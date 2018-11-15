@@ -57,6 +57,9 @@ public class HBaseHandler implements Handler {
 		byte[] cfBytes = Bytes.toBytes(hbaseColumnFamilyName);
 		Map<String, List<Put>> insertPutsMap = new HashMap<>();
 		Map<String, List<Delete>> deletePutsMap = new HashMap<>();
+		long start = System.currentTimeMillis();
+		long allStart = System.currentTimeMillis();
+		
 		data.forEach(r -> {
 			String value = r.value();
 			if (StringUtils.isEmpty(value)) {
@@ -147,18 +150,24 @@ public class HBaseHandler implements Handler {
 				}
 			}
 		});
+		
+		log.error("parse all data size {}, used {} ms.", insertPutsMap.size() + deletePutsMap.size(), System.currentTimeMillis() - start);
 
 		if (insertPutsMap.isEmpty() && deletePutsMap.isEmpty())
 			return true;
 
+		
 		Configuration hbaseConf = HBaseConfiguration.create();
 		hbaseConf.set("hbase.zookeeper.quorum", getZkServers());
 		hbaseConf.set("hbase.zookeeper.property.clientPort", getZkPort());
 		hbaseConf.set("hbase.defaults.for.version.skip", "true");
+		start = System.currentTimeMillis();
 		Connection hbaseConn = null;
 		try {
 			hbaseConn = ConnectionFactory.createConnection(hbaseConf);
+			log.error("connect hbase, used {} ms.", System.currentTimeMillis() - start);
 			for (Entry<String, List<Put>> entry : insertPutsMap.entrySet()) {
+				start = System.currentTimeMillis();
 				Table table = null;
 				try {
 					table = hbaseConn.getTable(TableName.valueOf(entry.getKey()));
@@ -168,10 +177,13 @@ public class HBaseHandler implements Handler {
 						table.close();
 					}
 				}
+				log.error("commit upsert size {}, used {} ms.", entry.getValue().size(), System.currentTimeMillis() - start);
 			}
 
 			for (Entry<String, List<Delete>> entry : deletePutsMap.entrySet()) {
+				start = System.currentTimeMillis();
 				Table table = null;
+				int size = entry.getValue().size();
 				try {
 					table = hbaseConn.getTable(TableName.valueOf(entry.getKey()));
 					table.delete(entry.getValue());
@@ -180,13 +192,16 @@ public class HBaseHandler implements Handler {
 						table.close();
 					}
 				}
+				log.error("commit delete size {}, used {} ms.", size, System.currentTimeMillis() - start);
 			}
 		} finally {
 			if (hbaseConn != null && !hbaseConn.isClosed()) {
 				hbaseConn.close();
 			}
 		}
-
+		
+		log.error("all data finished, used {} ms.", System.currentTimeMillis() - allStart);
+		
 		return true;
 	}
 

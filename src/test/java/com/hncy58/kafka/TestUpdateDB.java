@@ -9,7 +9,7 @@ public class TestUpdateDB {
 	static final String[] sqls = new String[] {
 			"update riskcontrol.inf_customer_credit set MODIFY_DATE = now() where ACTIVED_DATE BETWEEN '2018-06-14 15:27:27.969000' and '2018-06-18 15:27:27.969000'",
 			"update riskcontrol.inf_customer set MODIFY_DATE = now() where MOBILE_NO BETWEEN '15911018140' and '15920098140'",
-			"update isop.customer set modifyDate = now() where Cust_Id BETWEEN 21000000010 and 21000005502",
+			"update isop.customer set modifyDate = now() where Cust_Id BETWEEN 21000000010 and 21000025502",
 			"update payment.dict_card_bin set CARD_NAME = now()",
 			"update wechat.wechatmember set lastupdate = now() where subscribe_time < 1528888002000" };
 
@@ -26,13 +26,13 @@ public class TestUpdateDB {
 					e.printStackTrace();
 				}
 				try {
-					Thread.sleep(1 * 1000);
+					Thread.sleep(200);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
 			try {
-				Thread.sleep(5 * 1000);
+				Thread.sleep(1 * 1000);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
