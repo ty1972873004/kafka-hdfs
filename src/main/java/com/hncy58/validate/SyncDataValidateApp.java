@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -124,6 +126,7 @@ public class SyncDataValidateApp {
 
 	private static List<Map<String, Object>> mapResultSet(ResultSet rs) throws SQLException {
 
+		DecimalFormat df = new DecimalFormat("#0.0000");
 		List<Map<String, Object>> data = new ArrayList<>();
 		ResultSetMetaData meta = rs.getMetaData();
 
@@ -135,8 +138,16 @@ public class SyncDataValidateApp {
 
 		while (rs.next()) {
 			Map<String, Object> map = new HashMap<>();
+			int type = Types.OTHER;
+			int cnt = 1;
 			for (String name : names) {
-				map.put(name, rs.getObject(name));
+				type = meta.getColumnType(cnt);
+				if(type == 3 || type == 8 || type == 6) {
+					map.put(name, df.format(rs.getDouble(name)));
+				} else {
+					map.put(name, rs.getObject(name));
+				}
+				cnt ++;
 			}
 			data.add(map);
 		}

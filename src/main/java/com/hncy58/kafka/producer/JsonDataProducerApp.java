@@ -22,8 +22,8 @@ import com.alibaba.fastjson.JSONObject;
 
 public class JsonDataProducerApp {
 
-	private static int SEND_BATCH_SIZE = 50000;
-	private static int SEND_BATCH_CNT = 20;
+	private static int SEND_BATCH_SIZE = 5;
+	private static int SEND_BATCH_CNT = 2;
 	private static int SEND_BATCH_INTERVAL = 1;
 
 	public static final String[] ALPHA_ARR = new String[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b",
