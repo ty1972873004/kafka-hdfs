@@ -18,6 +18,9 @@ drop table if exists kudu_riskcontrol.inf_cs_accum_found;
 drop table if exists kudu_riskcontrol.inf_zmxy;
 -- drop table if exists kudu_riskcontrol.interface_log;
 
+drop table if exists kudu_riskcontrol.inf_channel;
+drop table if exists kudu_riskcontrol.inf_loan_product;
+
 -- # 创建表
 CREATE TABLE if not exists kudu_riskcontrol.inf_baiqishi (
 	ID 					STRING,
@@ -365,6 +368,37 @@ CREATE TABLE if not exists kudu_riskcontrol.customer_credit_apply_log(
 	, BIGDATA_SYNC_TIME		BIGINT
 	, PRIMARY KEY(CUST_ID)
 ) 
+PARTITION BY HASH PARTITIONS 16
+STORED AS KUDU
+;
+
+CREATE TABLE if not exists kudu_riskcontrol.inf_channel(
+  ID 				STRING,
+  CHANNEL_CODE 		STRING,
+  CHANNEL_NAME 		STRING,
+  CHANNEL_TYPE 		INT,
+  ENABLED 			INT,
+  REMARK 			STRING,
+  PRIORITY 			INT 	COMMENT '渠道优先级,数字越大优先级越高',
+  NOTIFY_TYPE 		STRING  COMMENT '1-短信通知;2-微信通知;3-不限制; 9-不通知',
+  PRIMARY KEY(ID)
+)
+PARTITION BY HASH PARTITIONS 16
+STORED AS KUDU
+;
+
+CREATE TABLE if not exists kudu_riskcontrol.inf_loan_product(
+  ID 				STRING,
+  LOAN_PROD_CODE 	STRING,
+  PRODUCT_NAME 		STRING,
+  REMARK 			STRING,
+  REPAYMENT_TYPE 	STRING,
+  RATE 				DOUBLE,
+  CREDIT_TYPE 		STRING 	COMMENT '授信类型 C-现金类型 S-场景类型',
+  ENABLED 			INT 	COMMENT '渠道优先级,数字越大优先级越高',
+  AUTO_ACTIVED 		STRING 	COMMENT '产品是否自动激活,0-手动激活, 1-自动激活',
+  PRIMARY KEY(ID)
+)
 PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;

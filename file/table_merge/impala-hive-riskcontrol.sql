@@ -128,3 +128,10 @@ select t.*, cast(replace(substr(t.CREATE_DATE, 1, 7), '-', '') as bigint) as DT_
 from kudu_riskcontrol.inf_cs_accum_found t
 where substr(t.CREATE_DATE, 1, 7) between from_timestamp(date_add(now(), -1), 'yyyy-MM-dd') and from_timestamp(now(), 'yyyy-MM-dd')
 ;
+
+-- 全量更新【inf_channel】
+insert overwrite table bak_riskcontrol.inf_channel select t.* from kudu_riskcontrol.inf_channel t
+;
+-- 全量更新【inf_loan_product】
+insert overwrite table bak_riskcontrol.inf_loan_product select t.* from kudu_riskcontrol.inf_loan_product t
+;
