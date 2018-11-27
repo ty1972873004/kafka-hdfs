@@ -49,9 +49,9 @@ import com.hncy58.util.Utils;
  * @date 2018年11月6日 下午5:48:34
  *
  */
-public class KuduHandler implements Handler {
+public class KuduHandler_181127 implements Handler {
 
-	private static final Logger log = LoggerFactory.getLogger(KuduHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(KuduHandler_181127.class);
 	private SessionConfiguration.FlushMode FLUSH_MODE = SessionConfiguration.FlushMode.MANUAL_FLUSH;
 	private final static int OPERATION_BATCH = 1000000;
 
@@ -69,7 +69,7 @@ public class KuduHandler implements Handler {
 
 	private Map<String, Schema> kuduTableSchemas = new HashMap<>();
 
-	public KuduHandler(String agentSvrName, String agentSvrGroup, int agentSvrType, String kuduMaster,
+	public KuduHandler_181127(String agentSvrName, String agentSvrGroup, int agentSvrType, String kuduMaster,
 			String localFileNamePrefix, String tblPrefix) throws Exception {
 		super();
 		this.agentSvrName = agentSvrName;
@@ -203,100 +203,172 @@ public class KuduHandler implements Handler {
 
 			log.debug("start parse list data.");
 			long parseListStart = System.currentTimeMillis();
-			List<Upsert> listUpsert = new ArrayList<Upsert>();
-			for (Object dataObj : jsonDataArr) {
-				JSONObject dataJson = null;
-				if (dataObj instanceof JSONObject) {
-					dataJson = (JSONObject) dataObj;
-				} else {
-					log.warn("data child is not correct json :{}", dataObj);
-					continue;
-				}
-				
-				Upsert upsert = table.newUpsert();
-				PartialRow row = upsert.getRow();
-
-				if ("i".equals(oprType) || "u".equals(oprType)) {
-					// 判断是否含同步时间状态字段
-					try {
-						row.addLong(syncTimeColname, syncTime);
-					} catch (Exception e) {
-						log.debug(tblId + "表没有同步时间字段," + e.getMessage(), e);
+			if ("i".equals(oprType) || "u".equals(oprType)) {
+				List<Upsert> listUpsert = new ArrayList<Upsert>();
+				for (Object dataObj : jsonDataArr) {
+					JSONObject dataJson = null;
+					if (dataObj instanceof JSONObject) {
+						dataJson = (JSONObject) dataObj;
+					} else {
+						log.warn("data child is not correct json :{}", dataObj);
+						continue;
 					}
-				} else if ("d".equals(oprType)) {
-					// 判断是否含同步时间、删除状态字段
+
+					StringBuffer idBuf = new StringBuffer("");
+					for (String id : rowKeys) {
+						idBuf.append("_" + dataJson.getString(id));
+					}
+
+					if (idBuf.length() > 0) {
+						Upsert upsert = table.newUpsert();
+						PartialRow row = upsert.getRow();
+
+						// 判断是否含同步时间状态字段
+						try {
+							row.addLong(syncTimeColname, syncTime);
+						} catch (Exception e) {
+							log.debug(tblId + "表没有同步时间字段," + e.getMessage(), e);
+						}
+
+						for (Entry<String, Object> entry : dataJson.entrySet()) {
+							try {
+								colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
+							} catch (Exception e) {
+								log.warn(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
+								continue;
+							}
+							// if (entry.getValue() == null) {
+							// row.setNull(entry.getKey().toLowerCase());
+							// continue;
+							// }
+							if (entry.getValue() == null || (Utils.isEmpty(entry.getValue())
+									&& ignoredTypes.contains(colSchema.getType()))) {
+								row.setNull(entry.getKey().toLowerCase());
+								continue;
+							}
+
+							switch (colSchema.getType()) {
+							case BINARY:
+								row.addBinary(entry.getKey().toLowerCase(), TypeUtils.castToBytes(entry.getValue()));
+								break;
+							case BOOL:
+								row.addBoolean(entry.getKey().toLowerCase(), TypeUtils.castToBoolean(entry.getValue()));
+								break;
+							case DOUBLE:
+								row.addDouble(entry.getKey().toLowerCase(), TypeUtils.castToDouble(entry.getValue()));
+								break;
+							case FLOAT:
+								row.addFloat(entry.getKey().toLowerCase(), TypeUtils.castToFloat(entry.getValue()));
+								break;
+							case INT8:
+								row.addByte(entry.getKey().toLowerCase(), TypeUtils.castToByte(entry.getValue()));
+								break;
+							case INT16:
+								row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
+								break;
+							case INT32:
+								row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
+								break;
+							case INT64:
+								row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
+								break;
+							case STRING:
+								row.addString(entry.getKey().toLowerCase(), TypeUtils.castToString(entry.getValue()));
+								break;
+							case UNIXTIME_MICROS:
+								row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
+								break;
+							default:
+								break;
+							}
+						}
+
+						listUpsert.add(upsert);
+						++ tmpCnt;
+					}
+				}
+
+				if (upsertsMap.containsKey(tblId)) {
+					upsertsMap.get(tblId).addAll(listUpsert);
+				} else {
+					upsertsMap.put(tblId, listUpsert);
+				}
+			} else if ("d".equals(oprType)) {
+				List<Delete> listDelete = new ArrayList<Delete>();
+				for (Object dataObj : jsonDataArr) {
+					if (dataObj != null && dataObj instanceof JSONObject) {
+					} else {
+						continue;
+					}
+
+					JSONObject rowJson = (JSONObject) dataObj;
+					Delete delete = table.newDelete();
+					PartialRow row = delete.getRow();
+
+					// 判断是否含同步时间状态字段
 					try {
 						row.addInt(delStatusColName, 1);
 						row.addLong(syncTimeColname, syncTime);
 					} catch (Exception e) {
 						log.debug(tblId + "表没有同步时间、删除状态字段," + e.getMessage(), e);
 					}
+
+					for (String key : rowKeys) {
+						try {
+							colSchema = kuduSchema.getColumn(key.toLowerCase());
+						} catch (Exception e) {
+							log.warn(tblId + "表没有字段:" + key + "," + e.getMessage(), e);
+							continue;
+						}
+						
+						switch (colSchema.getType()) {
+						case BINARY:
+							row.addBinary(key.toLowerCase(), rowJson.getBytes(key));
+							break;
+						case BOOL:
+							row.addBoolean(key.toLowerCase(), rowJson.getBoolean(key));
+							break;
+						case DOUBLE:
+							row.addDouble(key.toLowerCase(), rowJson.getDouble(key));
+							break;
+						case FLOAT:
+							row.addFloat(key.toLowerCase(), rowJson.getFloat(key));
+							break;
+						case INT8:
+							row.addByte(key.toLowerCase(), rowJson.getByte(key));
+							break;
+						case INT16:
+							row.addInt(key.toLowerCase(), rowJson.getInteger(key));
+							break;
+						case INT32:
+							row.addInt(key.toLowerCase(), rowJson.getInteger(key));
+							break;
+						case INT64:
+							row.addLong(key.toLowerCase(), castToLong(rowJson.get(key)));
+							break;
+						case DECIMAL:
+							row.addDecimal(key.toLowerCase(), castToDecimal(rowJson.get(key), colSchema.getTypeAttributes()));
+							break;
+						case STRING:
+							row.addString(key.toLowerCase(), rowJson.getString(key));
+							break;
+						case UNIXTIME_MICROS:
+							row.addLong(key.toLowerCase(), castToLong(rowJson.get(key)));
+							break;
+						default:
+							break;
+						}
+					}
+
+					listDelete.add(delete);
+					++ tmpCnt;
 				}
-				
-				for (Entry<String, Object> entry : dataJson.entrySet()) {
-					try {
-						colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
-					} catch (Exception e) {
-						log.warn(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
-						continue;
-					}
-					if (entry.getValue() == null) {
-						row.setNull(entry.getKey().toLowerCase());
-						continue;
-					}
-//					if (entry.getValue() == null || (Utils.isEmpty(entry.getValue())
-//							&& ignoredTypes.contains(colSchema.getType()))) {
-//						row.setNull(entry.getKey().toLowerCase());
-//						continue;
-//					}
-					
-					switch (colSchema.getType()) {
-					case BINARY:
-						row.addBinary(entry.getKey().toLowerCase(), TypeUtils.castToBytes(entry.getValue()));
-						break;
-					case BOOL:
-						row.addBoolean(entry.getKey().toLowerCase(), TypeUtils.castToBoolean(entry.getValue()));
-						break;
-					case DOUBLE:
-						row.addDouble(entry.getKey().toLowerCase(), TypeUtils.castToDouble(entry.getValue()));
-						break;
-					case FLOAT:
-						row.addFloat(entry.getKey().toLowerCase(), TypeUtils.castToFloat(entry.getValue()));
-						break;
-					case INT8:
-						row.addByte(entry.getKey().toLowerCase(), TypeUtils.castToByte(entry.getValue()));
-						break;
-					case INT16:
-						row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
-						break;
-					case INT32:
-						row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
-						break;
-					case INT64:
-						row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
-						break;
-					case DECIMAL: // kudu-1.7.0以后版本支持此数据格式
-						row.addDecimal(entry.getKey().toLowerCase(), castToDecimal(entry.getValue(), colSchema.getTypeAttributes()));
-						break;
-					case STRING:
-						row.addString(entry.getKey().toLowerCase(), TypeUtils.castToString(entry.getValue()));
-						break;
-					case UNIXTIME_MICROS:
-						row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
-						break;
-					default:
-						break;
-					}
+
+				if (deletesMap.containsKey(tblId)) {
+					deletesMap.get(tblId).addAll(listDelete);
+				} else {
+					deletesMap.put(tblId, listDelete);
 				}
-				
-				listUpsert.add(upsert);
-				++ tmpCnt;
-			}
-			
-			if (upsertsMap.containsKey(tblId)) {
-				upsertsMap.get(tblId).addAll(listUpsert);
-			} else {
-				upsertsMap.put(tblId, listUpsert);
 			}
 			log.debug("parse list data finished, used {} ms.", System.currentTimeMillis() - parseListStart);
 		}

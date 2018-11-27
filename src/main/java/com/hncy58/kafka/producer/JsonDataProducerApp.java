@@ -34,9 +34,9 @@ public class JsonDataProducerApp {
 	public static final String[] TBL_ID_ARR = new String[] { "customer", "account", "order"};
 	public static final String[] OPR_TYPE_ARR = new String[] { "i", "u", "d" };
 
-	public static String TOPIC_NAME = "test-topic-4";
+	public static String TOPIC_NAME = "test-topic-1";
 //	public static String KAFKA_SERVERS = "192.168.144.128:9092";
-	public static String KAFKA_SERVERS = "162.16.6.181:9092,162.16.6.180:9092,162.16.6.182:9092";
+	public static String KAFKA_SERVERS = "bigdata-node01:9092,bigdata-node02:9092,bigdata-node03:9092";
 
 	public static boolean USE_TRANSACTION = true;
 
