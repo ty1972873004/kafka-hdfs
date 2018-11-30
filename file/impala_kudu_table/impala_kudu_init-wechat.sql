@@ -1,16 +1,16 @@
 ﻿-- # 【创建数据库】
-create database if not exists kudu_wechat;
+create database if not exists kudu_sit_ods_wechat;
 
 -- # 【删除表】
-drop table if exists kudu_wechat.wechatmember;
-drop table if exists kudu_wechat.loan_user_info;
-drop table if exists kudu_wechat.his_loan_user_info;
-drop table if exists kudu_wechat.customer_login_record;
-drop table if exists kudu_wechat.customer_verify_record;
-drop table if exists kudu_wechat.feedback_record;
+drop table if exists kudu_sit_ods_wechat.wechatmember;
+drop table if exists kudu_sit_ods_wechat.loan_user_info;
+drop table if exists kudu_sit_ods_wechat.his_loan_user_info;
+drop table if exists kudu_sit_ods_wechat.customer_login_record;
+drop table if exists kudu_sit_ods_wechat.customer_verify_record;
+drop table if exists kudu_sit_ods_wechat.feedback_record;
 
 -- # 【创建表】
-CREATE TABLE if not exists kudu_wechat.wechatmember (
+CREATE TABLE if not exists kudu_sit_ods_wechat.wechatmember (
   ID 					STRING,
   CITY 					STRING,
   COUNTRY 				STRING,
@@ -33,7 +33,7 @@ STORED AS KUDU
 ;
 
 
-CREATE TABLE if not exists kudu_wechat.customer_login_record (
+CREATE TABLE if not exists kudu_sit_ods_wechat.customer_login_record (
   ID 					STRING,
   CREATEDATE 			STRING,
   MOBILE 				STRING,
@@ -46,7 +46,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_wechat.his_loan_user_info (
+CREATE TABLE if not exists kudu_sit_ods_wechat.his_loan_user_info (
   ID 					STRING,
   CREATEDATE 			STRING,
   CREATEUSER 			STRING,
@@ -66,7 +66,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_wechat.loan_user_info (
+CREATE TABLE if not exists kudu_sit_ods_wechat.loan_user_info (
   ID 					STRING,
   CERTID 				STRING,
   CERTTYPE 				STRING,
@@ -89,7 +89,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_wechat.customer_verify_record (
+CREATE TABLE if not exists kudu_sit_ods_wechat.customer_verify_record (
   ID 					STRING,
   CREATEDATE 			STRING,
   CREATEUSER 			STRING,
@@ -111,7 +111,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_wechat.feedback_record (
+CREATE TABLE if not exists kudu_sit_ods_wechat.feedback_record (
   ID 					STRING,
   BROWSERENTITY 		STRING,
   BROWSERMAJOR 			STRING,

@@ -1,6 +1,8 @@
 #!/bin/bash
 
 app='com.hncy58.kafka.monitor.KafkaTopicGroupOffsetsMonitor'
+#app='com.hncy58.kafka.consumer.ConsumerToKuduApp'
+#app='com.hncy58.kafka.consumer.ConsumerToHDFSApp'
 #app=${1}
 
 echo 'start to stop app '${app}

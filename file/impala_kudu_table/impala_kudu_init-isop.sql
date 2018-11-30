@@ -1,18 +1,18 @@
 ﻿-- # 【创建数据库】
-create database if not exists kudu_isop;
+create database if not exists kudu_sit_ods_isop;
 
 -- # 【删除表】
-drop table if exists kudu_isop.isop_employee;
-drop table if exists kudu_isop.isop_department;
-drop table if exists kudu_isop.customer;
-drop table if exists kudu_isop.customer_account;
-drop table if exists kudu_isop.inf_customer_contact;
-drop table if exists kudu_isop.inf_customer_base;
-drop table if exists kudu_isop.inf_cust_address;
-drop table if exists kudu_isop.inf_customer_occupation;
+drop table if exists kudu_sit_ods_isop.isop_employee;
+drop table if exists kudu_sit_ods_isop.isop_department;
+drop table if exists kudu_sit_ods_isop.customer;
+drop table if exists kudu_sit_ods_isop.customer_account;
+drop table if exists kudu_sit_ods_isop.inf_customer_contact;
+drop table if exists kudu_sit_ods_isop.inf_customer_base;
+drop table if exists kudu_sit_ods_isop.inf_cust_address;
+drop table if exists kudu_sit_ods_isop.inf_customer_occupation;
 
 -- # 【创建表】
-CREATE TABLE if not exists kudu_isop.isop_employee(
+CREATE TABLE if not exists kudu_sit_ods_isop.isop_employee(
 	ID		 				STRING
 	, EMPLOYEENO 			STRING
 	, NAME					STRING
@@ -26,7 +26,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.isop_department(
+CREATE TABLE if not exists kudu_sit_ods_isop.isop_department(
 	ID 						INT
 	, NAME					STRING
 	, CREATEDATE			STRING
@@ -38,7 +38,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.customer(
+CREATE TABLE if not exists kudu_sit_ods_isop.customer(
 	CUST_ID					BIGINT
 	, CERT_ID				STRING
 	, CUST_NAME				STRING
@@ -53,7 +53,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.customer_account(
+CREATE TABLE if not exists kudu_sit_ods_isop.customer_account(
 	ACCT_ID 				BIGINT
 	, ACCT_DIRECT 			INT
 	, ACCT_NO 				STRING
@@ -74,7 +74,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.inf_customer_contact(
+CREATE TABLE if not exists kudu_sit_ods_isop.inf_customer_contact(
 	ID			 			STRING
 	, CONTACT_NAME 			STRING
 	, CONTACT_RELATION 		STRING
@@ -92,7 +92,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.inf_customer_base(
+CREATE TABLE if not exists kudu_sit_ods_isop.inf_customer_base(
 	CUST_ID 				BIGINT
 	, ADDRESS 				STRING
 	, BIRTH_DATE 			STRING
@@ -126,7 +126,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.inf_cust_address(
+CREATE TABLE if not exists kudu_sit_ods_isop.inf_cust_address(
 	CUST_ID 			BIGINT
 	, ADRESS_STATUS 	INT
 	, CERT_ID 			STRING
@@ -144,9 +144,9 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_isop.inf_customer_occupation(
+CREATE TABLE if not exists kudu_sit_ods_isop.inf_customer_occupation(
 	CUST_ID 				BIGINT
-	, ANNUAL_INCOME 		DOUBLE
+	, ANNUAL_INCOME 		DECIMAL(20, 6)
 	, CERT_ID 				STRING
 	, CERT_TYPE 			STRING
 	, COMPANY 				STRING

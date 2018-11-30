@@ -113,9 +113,11 @@ public class ConsumerToHDFSApp {
 					try {
 						if (cnt >= maxCnt) {
 							// 停止状态上报线程
-							heartRunnable.setRun(false);
-							heartRunnable.setSvrStatus(0);
-							heartThread.interrupt();
+							if(heartRunnable != null) {
+								heartRunnable.setRun(false);
+								heartRunnable.setSvrStatus(0);
+								heartThread.interrupt();
+							}
 							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
 									agentSvrType, 0, "监测到服务中断信号，退出服务！");
 							log.info("设置服务状态为下线：" + ret);
@@ -149,9 +151,11 @@ public class ConsumerToHDFSApp {
 		app.setDownSignal(true);
 		try {
 			// 停止状态上报线程
-			heartRunnable.setRun(false);
-			heartRunnable.setSvrStatus(0);
-			heartThread.interrupt();
+			if(heartRunnable != null) {
+				heartRunnable.setRun(false);
+				heartRunnable.setSvrStatus(0);
+				heartThread.interrupt();
+			}
 			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
 					"监测到服务中断信号，退出服务！");
 			log.info("设置服务状态为下线：" + ret);

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -62,6 +63,7 @@ public class ConsumerToKuduApp {
 	private static int ERR_HANDLED_CNT = 0;
 	private static Long TOTAL_MSG_CNT = 0L;
 
+	private static String kafkaOffset = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaOffset", "latest");
 	private static String kafkaServers = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaServers", "localhost:9092");
 	private static String kafkaGroupId = PropsUtil.getWithDefault(PROP_PREFIX, "kafkaGroupId", "ConsumerToKuduApp");
 	private static List<String> subscribeToipcs = Arrays
@@ -96,9 +98,11 @@ public class ConsumerToKuduApp {
 					try {
 						if (cnt >= maxCnt) {
 							// 停止状态上报线程
-							heartRunnable.setRun(false);
-							heartRunnable.setSvrStatus(0);
-							heartThread.interrupt();
+							if(heartRunnable != null) {
+								heartRunnable.setRun(false);
+								heartRunnable.setSvrStatus(0);
+								heartThread.interrupt();
+							}
 							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
 									agentSvrType, 0, "监测到服务中断信号，退出服务！");
 							log.info("设置服务状态为下线：" + ret);
@@ -133,9 +137,11 @@ public class ConsumerToKuduApp {
 		app.setDownSignal(true);
 		try {
 			// 停止状态上报线程
-			heartRunnable.setRun(false);
-			heartRunnable.setSvrStatus(0);
-			heartThread.interrupt();
+			if(heartRunnable != null) {
+				heartRunnable.setRun(false);
+				heartRunnable.setSvrStatus(0);
+				heartThread.interrupt();
+			}
 			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
 					"监测到服务中断信号，退出服务！");
 			log.info("设置服务状态为下线：" + ret);
@@ -312,6 +318,7 @@ public class ConsumerToKuduApp {
 			props.put("group.id", kafkaGroupId);
 
 			// props.put("auto.commit.interval.ms", "1000");
+			props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaOffset);
 			props.put("enable.auto.commit", "false");
 			props.put("isolation.level", "read_committed");
 			props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");

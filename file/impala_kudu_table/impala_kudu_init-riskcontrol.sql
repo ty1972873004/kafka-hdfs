@@ -1,28 +1,28 @@
 ﻿-- # 【创建数据库】
-create database if not exists kudu_riskcontrol;
+create database if not exists kudu_sit_ods_riskcontrol;
 
 -- # 【删除表】
-drop table if exists kudu_riskcontrol.inf_customer;
-drop table if exists kudu_riskcontrol.inf_customer_credit;
-drop table if exists kudu_riskcontrol.his_customer_credit;
-drop table if exists kudu_riskcontrol.customer_credit_apply_log;
-drop table if exists kudu_riskcontrol.inf_credit_frozen;
-drop table if exists kudu_riskcontrol.inf_credit_unfrozen;
-drop table if exists kudu_riskcontrol.customer_blacklist;
-drop table if exists kudu_riskcontrol.call_ack_task;
-drop table if exists kudu_riskcontrol.inf_baiqishi;
-drop table if exists kudu_riskcontrol.inf_tongdun;
-drop table if exists kudu_riskcontrol.inf_tongdun_education;
-drop table if exists kudu_riskcontrol.inf_cs_insurance;
-drop table if exists kudu_riskcontrol.inf_cs_accum_found;
-drop table if exists kudu_riskcontrol.inf_zmxy;
--- drop table if exists kudu_riskcontrol.interface_log;
+drop table if exists kudu_sit_ods_riskcontrol.inf_customer;
+drop table if exists kudu_sit_ods_riskcontrol.inf_customer_credit;
+drop table if exists kudu_sit_ods_riskcontrol.his_customer_credit;
+drop table if exists kudu_sit_ods_riskcontrol.customer_credit_apply_log;
+drop table if exists kudu_sit_ods_riskcontrol.inf_credit_frozen;
+drop table if exists kudu_sit_ods_riskcontrol.inf_credit_unfrozen;
+drop table if exists kudu_sit_ods_riskcontrol.customer_blacklist;
+drop table if exists kudu_sit_ods_riskcontrol.call_ack_task;
+drop table if exists kudu_sit_ods_riskcontrol.inf_baiqishi;
+drop table if exists kudu_sit_ods_riskcontrol.inf_tongdun;
+drop table if exists kudu_sit_ods_riskcontrol.inf_tongdun_education;
+drop table if exists kudu_sit_ods_riskcontrol.inf_cs_insurance;
+drop table if exists kudu_sit_ods_riskcontrol.inf_cs_accum_found;
+drop table if exists kudu_sit_ods_riskcontrol.inf_zmxy;
+-- drop table if exists kudu_sit_ods_riskcontrol.interface_log;
 
-drop table if exists kudu_riskcontrol.inf_channel;
-drop table if exists kudu_riskcontrol.inf_loan_product;
+drop table if exists kudu_sit_ods_riskcontrol.inf_channel;
+drop table if exists kudu_sit_ods_riskcontrol.inf_loan_product;
 
 -- # 创建表
-CREATE TABLE if not exists kudu_riskcontrol.inf_baiqishi (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_baiqishi (
 	ID 					STRING,
 	CERT_ID 			STRING,
 	CREATE_DATE 		STRING,
@@ -45,7 +45,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_tongdun (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_tongdun (
 	ID 					STRING,
 	CERT_ID 			STRING,
 	CREATE_DATE 		STRING,
@@ -68,7 +68,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_tongdun_education (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_tongdun_education (
 	ID 					STRING,
 	EDUCATION_DEGREE 	STRING,
 	ENTRANCE_DATE 		STRING,
@@ -90,7 +90,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_cs_accum_found (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_cs_accum_found (
 	ID					STRING,
 	ACC_BAL				STRING,
 	ACC_CODE			STRING,
@@ -133,7 +133,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_cs_insurance (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_cs_insurance (
 	ID					STRING,
 	CERT_ID				STRING,
 	CORP_NAME			STRING,
@@ -142,7 +142,7 @@ CREATE TABLE if not exists kudu_riskcontrol.inf_cs_insurance (
 	FIRST_IN_DATE		STRING,
 	GENDER				STRING,
 	INTERFACE_LOG_ID	STRING,
-	PAY_SALARY			DOUBLE,
+	PAY_SALARY			DECIMAL(20, 6),
 	PAY_STATUS			STRING,
 	RATE				STRING,
 	BIGDATA_DEL_STATUS	INT,
@@ -153,7 +153,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_zmxy (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_zmxy (
 	ID			 					STRING,
 	CERT_ID							STRING,
 	ANTI_FRAUD_INTEGRATE_QRY_LOG_ID	STRING,
@@ -174,7 +174,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.call_ack_task (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.call_ack_task (
 	TASK_ID				STRING,
 	ACCOUNT_NO			STRING,
 	CERT_ID				STRING,
@@ -191,7 +191,7 @@ CREATE TABLE if not exists kudu_riskcontrol.call_ack_task (
 	SERVER_PATH			STRING,
 	STATUS				STRING,
 	CREDIT_TYPE			STRING,
-	LOAN_AMOUNT			DOUBLE,
+	LOAN_AMOUNT			DECIMAL(20, 6),
 	BIGDATA_DEL_STATUS	INT,
 	BIGDATA_SYNC_TIME	BIGINT,
 	PRIMARY KEY(TASK_ID)
@@ -200,7 +200,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.customer_blacklist (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.customer_blacklist (
 	ID					STRING,
 	BLACKLIST_TYPE		BIGINT,
 	CERT_ID				STRING,
@@ -222,12 +222,12 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_credit_frozen (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_credit_frozen (
 	ID					STRING,
 	CERT_ID				STRING, 
 	CREATE_DATE			STRING,
 	CUST_NAME			STRING,
-	FROZEN_AMOUNT		DOUBLE, 
+	FROZEN_AMOUNT		DECIMAL(20, 6), 
 	ORIGINAL_STATUS		STRING, 
 	REMARK				STRING, 
 	SOURCE_TYPE			STRING, 
@@ -242,14 +242,14 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_credit_unfrozen (
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_credit_unfrozen (
 	ID					STRING,
 	CERT_ID				STRING,
 	CREATE_DATE			STRING,
 	CUST_NAME			STRING,
 	REMARK				STRING,
 	SOURCE_TYPE			STRING,
-	UNFROZEN_AMOUNT		DOUBLE,
+	UNFROZEN_AMOUNT		DECIMAL(20, 6),
 	CREDIT_INFO			STRING,
 	OPERATOR_ID			STRING, 
 	FROZEN_OPERATOR		STRING, 
@@ -263,7 +263,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_customer(
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_customer(
 	CUST_ID					STRING
 	, CERT_ID				STRING
 	, CUST_NAME				STRING
@@ -284,7 +284,7 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_customer_credit(
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_customer_credit(
 	ID						STRING
 	, CERT_ID				STRING
 	, CUST_NAME 			STRING
@@ -294,9 +294,9 @@ CREATE TABLE if not exists kudu_riskcontrol.inf_customer_credit(
 	, CREDIT_TYPE 			STRING
 	, REPAYMENT_TYPE 		STRING
 	, TERM 					INT
-	, RATE 					DOUBLE
-	, CREDIT_AMOUNT 		DOUBLE
-	, FROZEN_AMOUNT 		DOUBLE
+	, RATE 					DECIMAL(20, 6)
+	, CREDIT_AMOUNT 		DECIMAL(20, 6)
+	, FROZEN_AMOUNT 		DECIMAL(20, 6)
 	, SOURCE_TYPE 			STRING
 	, MANUAL_VERIFIED 		STRING
 	, EXPIRE_DATE 			STRING
@@ -312,13 +312,13 @@ CREATE TABLE if not exists kudu_riskcontrol.inf_customer_credit(
 	, REMARK				STRING
 	, BIGDATA_DEL_STATUS	INT
 	, BIGDATA_SYNC_TIME		BIGINT
-	, PRIMARY KEY(CUST_ID)
+	, PRIMARY KEY(ID)
 ) 
 PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.his_customer_credit(
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.his_customer_credit(
 	ID						STRING
 	, CERT_ID				STRING
 	, CUST_NAME 			STRING
@@ -328,9 +328,9 @@ CREATE TABLE if not exists kudu_riskcontrol.his_customer_credit(
 	, CREDIT_TYPE 			STRING
 	, REPAYMENT_TYPE 		STRING
 	, TERM 					INT
-	, RATE 					DOUBLE
-	, CREDIT_AMOUNT 		DOUBLE
-	, FROZEN_AMOUNT 		DOUBLE
+	, RATE 					DECIMAL(20, 6)
+	, CREDIT_AMOUNT 		DECIMAL(20, 6)
+	, FROZEN_AMOUNT 		DECIMAL(20, 6)
 	, SOURCE_TYPE 			STRING
 	, MANUAL_VERIFIED 		STRING
 	, VERIFIED_STATUS 		STRING
@@ -343,13 +343,13 @@ CREATE TABLE if not exists kudu_riskcontrol.his_customer_credit(
 	, REMARK				STRING
 	, BIGDATA_DEL_STATUS	INT
 	, BIGDATA_SYNC_TIME		BIGINT
-	, PRIMARY KEY(CUST_ID)
+	, PRIMARY KEY(ID)
 ) 
 PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.customer_credit_apply_log(
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.customer_credit_apply_log(
 	ID						STRING
 	, CERT_ID 				STRING
 	, CHANNEL_CODE 			STRING
@@ -366,13 +366,13 @@ CREATE TABLE if not exists kudu_riskcontrol.customer_credit_apply_log(
 	, DEVICE_TYPE 			STRING
 	, BIGDATA_DEL_STATUS	INT
 	, BIGDATA_SYNC_TIME		BIGINT
-	, PRIMARY KEY(CUST_ID)
+	, PRIMARY KEY(ID)
 ) 
 PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_channel(
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_channel(
   ID 				STRING,
   CHANNEL_CODE 		STRING,
   CHANNEL_NAME 		STRING,
@@ -387,13 +387,13 @@ PARTITION BY HASH PARTITIONS 16
 STORED AS KUDU
 ;
 
-CREATE TABLE if not exists kudu_riskcontrol.inf_loan_product(
+CREATE TABLE if not exists kudu_sit_ods_riskcontrol.inf_loan_product(
   ID 				STRING,
   LOAN_PROD_CODE 	STRING,
   PRODUCT_NAME 		STRING,
   REMARK 			STRING,
   REPAYMENT_TYPE 	STRING,
-  RATE 				DOUBLE,
+  RATE 				DECIMAL(20, 6),
   CREDIT_TYPE 		STRING 	COMMENT '授信类型 C-现金类型 S-场景类型',
   ENABLED 			INT 	COMMENT '渠道优先级,数字越大优先级越高',
   AUTO_ACTIVED 		STRING 	COMMENT '产品是否自动激活,0-手动激活, 1-自动激活',
