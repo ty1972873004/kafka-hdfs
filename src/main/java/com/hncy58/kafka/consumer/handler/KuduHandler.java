@@ -215,22 +215,20 @@ public class KuduHandler implements Handler {
 				
 				Upsert upsert = table.newUpsert();
 				PartialRow row = upsert.getRow();
-
+				
+				int delStatus = -1;
 				if ("i".equals(oprType) || "u".equals(oprType)) {
-					// 判断是否含同步时间状态字段
-					try {
-						row.addLong(syncTimeColname, syncTime);
-					} catch (Exception e) {
-						log.debug(tblId + "表没有同步时间字段," + e.getMessage(), e);
-					}
+					delStatus = 0;
 				} else if ("d".equals(oprType)) {
+					delStatus = 1;
+				}
+
+				try {
 					// 判断是否含同步时间、删除状态字段
-					try {
-						row.addInt(delStatusColName, 1);
-						row.addLong(syncTimeColname, syncTime);
-					} catch (Exception e) {
-						log.debug(tblId + "表没有同步时间、删除状态字段," + e.getMessage(), e);
-					}
+					row.addInt(delStatusColName, delStatus);
+					row.addLong(syncTimeColname, syncTime);
+				} catch (Exception e) {
+					log.debug(tblId + "表没有同步时间、删除状态字段," + e.getMessage(), e);
 				}
 				
 				for (Entry<String, Object> entry : dataJson.entrySet()) {

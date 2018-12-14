@@ -154,6 +154,37 @@ public class ConsumerToKuduApp {
 		// Runtime.getRuntime().exit(2);
 		// System.exit(2);
 	}
+	
+	private void doStop() {
+		run = false;
+		try {
+			// 停止状态上报线程
+			if(heartRunnable != null) {
+				heartRunnable.setRun(false);
+				heartRunnable.setSvrStatus(0);
+				heartThread.interrupt();
+			}
+
+			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
+					agentSvrType, 0, "监测到服务中断信号，退出服务！");
+			log.info("设置服务状态为下线：" + ret);
+			ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+					"设置服务状态为下线：" + ret + "，shutdown_singal：" + shutdown_singal + "，ERR_HANDLED_CNT："
+							+ ERR_HANDLED_CNT);
+			log.info("上报告警结果：" + ret);
+
+			setShutdown(true);
+			setDownSignal(true);
+			log.error("监测到服务中断信号，退出服务！");
+			Runtime.getRuntime().exit(0);
+			System.exit(0);
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+			log.error("捕获到异常停止状态，直接退出进程！");
+			System.exit(1);
+		}
+	
+	}
 
 	public void doRun(String[] args) {
 		try {
@@ -170,28 +201,10 @@ public class ConsumerToKuduApp {
 								doHandle(buffer);
 								buffer.clear();
 							}
-							// 停止状态上报线程
-							heartRunnable.setRun(false);
-							heartRunnable.setSvrStatus(0);
-							heartThread.interrupt();
-
-							boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
-									agentSvrType, 0, "监测到服务中断信号，退出服务！");
-							log.info("设置服务状态为下线：" + ret);
-							ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
-									"设置服务状态为下线：" + ret + "，shutdown_singal：" + shutdown_singal + "，ERR_HANDLED_CNT："
-											+ ERR_HANDLED_CNT);
-							log.info("上报告警结果：" + ret);
-
-							setShutdown(true);
-							setDownSignal(true);
-							log.error("监测到服务中断信号，退出服务！");
-							Runtime.getRuntime().exit(0);
-							System.exit(0);
 						} catch (Exception e) {
 							log.error(e.getMessage(), e);
-							log.error("捕获到异常停止状态，直接退出进程！");
-							System.exit(1);
+						} finally {
+							doStop();
 						}
 					} else {
 						ConsumerRecords<String, String> records = consumer.poll(fetchMiliseconds);
@@ -258,7 +271,13 @@ public class ConsumerToKuduApp {
 					agentDestType, svrHeartBeatSleepInterval, maxSvrStatusUpdateFailCnt);
 
 			while (ret != 1) {
-				log.error("注册服务失败，name:{}, group:{}, svrType:{}, sourceType:{}, destType:{}, 注册结果:{}", agentSvrName,
+				// 如果发送了终止进程消息，则停止消费，并且处理掉缓存的消息
+				if (isShutdown() || ERR_HANDLED_CNT >= maxErrHandledCnt) {
+					doStop();
+					break;
+				}
+				
+				log.error("注册服务，name:{}, group:{}, svrType:{}, sourceType:{}, destType:{}, 注册结果:{}", agentSvrName,
 						agentSvrGroup, agentSvrType, agentSourceType, agentDestType, ret);
 				try {
 					Thread.sleep(svrRegFailSleepInterval * 1000);
