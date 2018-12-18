@@ -48,7 +48,7 @@ public class ConsumerToKuduApp {
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "maxSvrStatusUpdateFailCnt", "2"));
 	private static int svrRegFailSleepInterval = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "svrRegFailSleepInterval", "5"));
-	
+
 	private static int fetchMiliseconds = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "fetchMiliseconds", "1000"));
 	private static int sleepSeconds = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "sleepSeconds", "5"));
@@ -98,7 +98,7 @@ public class ConsumerToKuduApp {
 					try {
 						if (cnt >= maxCnt) {
 							// 停止状态上报线程
-							if(heartRunnable != null) {
+							if (heartRunnable != null) {
 								heartRunnable.setRun(false);
 								heartRunnable.setSvrStatus(0);
 								heartThread.interrupt();
@@ -137,7 +137,7 @@ public class ConsumerToKuduApp {
 		app.setDownSignal(true);
 		try {
 			// 停止状态上报线程
-			if(heartRunnable != null) {
+			if (heartRunnable != null) {
 				heartRunnable.setRun(false);
 				heartRunnable.setSvrStatus(0);
 				heartThread.interrupt();
@@ -154,23 +154,22 @@ public class ConsumerToKuduApp {
 		// Runtime.getRuntime().exit(2);
 		// System.exit(2);
 	}
-	
+
 	private void doStop() {
 		run = false;
 		try {
 			// 停止状态上报线程
-			if(heartRunnable != null) {
+			if (heartRunnable != null) {
 				heartRunnable.setRun(false);
 				heartRunnable.setSvrStatus(0);
 				heartThread.interrupt();
 			}
 
-			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup,
-					agentSvrType, 0, "监测到服务中断信号，退出服务！");
+			boolean ret = ServerStatusReportUtil.reportSvrStatus(agentSvrName, agentSvrGroup, agentSvrType, 0,
+					"监测到服务中断信号，退出服务！");
 			log.info("设置服务状态为下线：" + ret);
 			ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
-					"设置服务状态为下线：" + ret + "，shutdown_singal：" + shutdown_singal + "，ERR_HANDLED_CNT："
-							+ ERR_HANDLED_CNT);
+					"设置服务状态为下线：" + ret + "，shutdown_singal：" + shutdown_singal + "，ERR_HANDLED_CNT：" + ERR_HANDLED_CNT);
 			log.info("上报告警结果：" + ret);
 
 			setShutdown(true);
@@ -183,12 +182,12 @@ public class ConsumerToKuduApp {
 			log.error("捕获到异常停止状态，直接退出进程！");
 			System.exit(1);
 		}
-	
+
 	}
 
 	public void doRun(String[] args) {
 		try {
-			List<ConsumerRecord<String, String>> buffer = new ArrayList<>();
+			List<ConsumerRecord<String, String>> bufferList = new ArrayList<>();
 			int sleepdCnt = 0;
 
 			while (run) {
@@ -197,9 +196,9 @@ public class ConsumerToKuduApp {
 					if (isShutdown() || ERR_HANDLED_CNT >= maxErrHandledCnt) {
 						run = false;
 						try {
-							if (buffer != null && !buffer.isEmpty()) {
-								doHandle(buffer);
-								buffer.clear();
+							if (bufferList != null && !bufferList.isEmpty()) {
+								doHandle(bufferList);
+								bufferList.clear();
 							}
 						} catch (Exception e) {
 							log.error(e.getMessage(), e);
@@ -210,28 +209,28 @@ public class ConsumerToKuduApp {
 						ConsumerRecords<String, String> records = consumer.poll(fetchMiliseconds);
 						int cnt = records.count();
 						if (cnt > 0) {
-							log.info("current polled " + cnt + " records.");
+							log.warn("current polled " + cnt + " records.");
 							TOTAL_MSG_CNT += cnt;
-							log.info("total polled " + TOTAL_MSG_CNT + " records.");
+							log.warn("total polled " + TOTAL_MSG_CNT + " records.");
 							for (ConsumerRecord<String, String> record : records) {
-								buffer.add(record);
+								bufferList.add(record);
 							}
 
-							if (buffer.size() >= minBatchSize || (sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
+							if (bufferList.size() >= minBatchSize || (sleepdCnt >= minSleepCnt && !bufferList.isEmpty())) {
 								sleepdCnt = 0;
-								doHandle(buffer);
-								buffer.clear();
+								doHandle(bufferList);
+								bufferList.clear();
 								Thread.sleep(500); //
 							} else {
-								log.info("current buffer remains " + buffer.size() + " records.");
+								log.warn("current buffer remains " + bufferList.size() + " records.");
 								sleepdCnt += 1;
 							}
 						} else {
-							log.info("no data to poll, sleep " + sleepSeconds + " s. buff size:" + buffer.size());
-							if ((sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
+							log.warn("no data to poll, sleep " + sleepSeconds + " s. buff size:" + bufferList.size());
+							if ((sleepdCnt >= minSleepCnt && !bufferList.isEmpty())) {
 								sleepdCnt = 0;
-								doHandle(buffer);
-								buffer.clear();
+								doHandle(bufferList);
+								bufferList.clear();
 							} else {
 								Thread.sleep(sleepSeconds * 1000);
 								sleepdCnt += 1;
@@ -276,7 +275,7 @@ public class ConsumerToKuduApp {
 					doStop();
 					break;
 				}
-				
+
 				log.error("注册服务，name:{}, group:{}, svrType:{}, sourceType:{}, destType:{}, 注册结果:{}", agentSvrName,
 						agentSvrGroup, agentSvrType, agentSourceType, agentDestType, ret);
 				try {

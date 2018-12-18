@@ -22,14 +22,13 @@ import org.apache.kudu.ColumnSchema;
 import org.apache.kudu.ColumnTypeAttributes;
 import org.apache.kudu.Schema;
 import org.apache.kudu.Type;
-import org.apache.kudu.client.Delete;
 import org.apache.kudu.client.KuduClient;
 import org.apache.kudu.client.KuduException;
 import org.apache.kudu.client.KuduSession;
 import org.apache.kudu.client.KuduTable;
+import org.apache.kudu.client.Operation;
 import org.apache.kudu.client.PartialRow;
 import org.apache.kudu.client.SessionConfiguration;
-import org.apache.kudu.client.Upsert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,8 +122,9 @@ public class KuduHandler implements Handler {
 		session.setFlushMode(FLUSH_MODE);
 		session.setMutationBufferSpace(OPERATION_BATCH);
 		log.info("init kudu session finished.");
-		Map<String, List<Upsert>> upsertsMap = new HashMap<>();
-		Map<String, List<Delete>> deletesMap = new HashMap<>();
+		Map<String, List<Operation>> upsertMap = new HashMap<>();
+		Map<String, List<Operation>> insertMap = new HashMap<>();
+		Map<String, List<Operation>> deleteMap = new HashMap<>();
 		Schema kuduSchema;
 		String tblId;
 		String dbId;
@@ -145,11 +145,11 @@ public class KuduHandler implements Handler {
 		log.info("start parse kafka data.");
 		long start = System.currentTimeMillis();
 		long tmpCnt = 0L;
-		
+
 		for (ConsumerRecord<String, String> r : data) {
 			value = r.value();
 			if (StringUtils.isEmpty(value)) {
-				log.warn("data value is null, ignored, record:{}", r);
+				log.error("data value is null, ignored, record:{}", r);
 				continue;
 			}
 
@@ -160,14 +160,14 @@ public class KuduHandler implements Handler {
 			}
 
 			if (json == null || json.isEmpty() || !json.containsKey("schema") || !json.containsKey("data")) {
-				log.warn("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
+				log.error("json value is null or empty, not contain schema,not contain data, ignored, record:{}", r);
 				continue;
 			}
 
 			schema = json.getJSONObject("schema");
 			jsonDataArr = json.getJSONArray("data");
 			if (jsonDataArr.isEmpty()) {
-				log.warn("json value data field is null, ignored, record:{}", r);
+				log.error("json value data field is null, ignored, record:{}", r);
 				continue;
 			}
 
@@ -178,7 +178,7 @@ public class KuduHandler implements Handler {
 
 			if (!kuduTableSchemas.containsKey(tblId)) {
 				unExistTable.add(tblId);
-				log.warn("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略 ,data:\n{}", tblId, value);
+				log.error("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略 ,data:\n{}", tblId, value);
 				continue;
 			}
 
@@ -203,51 +203,66 @@ public class KuduHandler implements Handler {
 
 			log.debug("start parse list data.");
 			long parseListStart = System.currentTimeMillis();
-			List<Upsert> listUpsert = new ArrayList<Upsert>();
+			List<Operation> insertList = new ArrayList<Operation>();
+			List<Operation> upsertList = new ArrayList<Operation>();
+			List<Operation> deleteList = new ArrayList<Operation>();
 			for (Object dataObj : jsonDataArr) {
 				JSONObject dataJson = null;
 				if (dataObj instanceof JSONObject) {
 					dataJson = (JSONObject) dataObj;
 				} else {
-					log.warn("data child is not correct json :{}", dataObj);
+					log.error("data child is not correct json :{}", dataObj);
 					continue;
 				}
-				
-				Upsert upsert = table.newUpsert();
-				PartialRow row = upsert.getRow();
-				
+
+				Operation option = null;
+				PartialRow row = null;
 				int delStatus = -1;
-				if ("i".equals(oprType) || "u".equals(oprType)) {
+
+				if ("i".equals(oprType)) {
 					delStatus = 0;
+					option = table.newUpsert();
+					insertList.add(option);
+				} else if ("u".equals(oprType)) {
+					delStatus = 2;
+					option = table.newUpsert();
+					upsertList.add(option);
 				} else if ("d".equals(oprType)) {
+					option = table.newUpsert();
 					delStatus = 1;
+					deleteList.add(option);
+				} else {
+					log.error("not correct oprType:{}", oprType);
 				}
+
+				row = option.getRow();
 
 				try {
 					// 判断是否含同步时间、删除状态字段
 					row.addInt(delStatusColName, delStatus);
 					row.addLong(syncTimeColname, syncTime);
 				} catch (Exception e) {
-					log.debug(tblId + "表没有同步时间、删除状态字段," + e.getMessage(), e);
+					log.error(tblId + "表没有同步时间、删除状态字段," + e.getMessage(), e);
 				}
-				
+
 				for (Entry<String, Object> entry : dataJson.entrySet()) {
 					try {
 						colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
 					} catch (Exception e) {
-						log.warn(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage(), e);
+						log.warn(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage());
 						continue;
 					}
 					if (entry.getValue() == null) {
 						row.setNull(entry.getKey().toLowerCase());
 						continue;
 					}
-//					if (entry.getValue() == null || (Utils.isEmpty(entry.getValue())
-//							&& ignoredTypes.contains(colSchema.getType()))) {
-//						row.setNull(entry.getKey().toLowerCase());
-//						continue;
-//					}
-					
+					// if (entry.getValue() == null ||
+					// (Utils.isEmpty(entry.getValue())
+					// && ignoredTypes.contains(colSchema.getType()))) {
+					// row.setNull(entry.getKey().toLowerCase());
+					// continue;
+					// }
+
 					switch (colSchema.getType()) {
 					case BINARY:
 						row.addBinary(entry.getKey().toLowerCase(), TypeUtils.castToBytes(entry.getValue()));
@@ -274,7 +289,8 @@ public class KuduHandler implements Handler {
 						row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
 						break;
 					case DECIMAL: // kudu-1.7.0以后版本支持此数据格式
-						row.addDecimal(entry.getKey().toLowerCase(), castToDecimal(entry.getValue(), colSchema.getTypeAttributes()));
+						row.addDecimal(entry.getKey().toLowerCase(),
+								castToDecimal(entry.getValue(), colSchema.getTypeAttributes()));
 						break;
 					case STRING:
 						row.addString(entry.getKey().toLowerCase(), TypeUtils.castToString(entry.getValue()));
@@ -286,26 +302,44 @@ public class KuduHandler implements Handler {
 						break;
 					}
 				}
-				
-				listUpsert.add(upsert);
-				++ tmpCnt;
+
+				++tmpCnt;
 			}
-			
-			if (upsertsMap.containsKey(tblId)) {
-				upsertsMap.get(tblId).addAll(listUpsert);
-			} else {
-				upsertsMap.put(tblId, listUpsert);
+
+			if (!insertList.isEmpty()) {
+				if (insertMap.containsKey(tblId)) {
+					insertMap.get(tblId).addAll(insertList);
+				} else {
+					insertMap.put(tblId, insertList);
+				}
+			}
+
+			if (!upsertList.isEmpty()) {
+				if (upsertMap.containsKey(tblId)) {
+					upsertMap.get(tblId).addAll(upsertList);
+				} else {
+					upsertMap.put(tblId, upsertList);
+				}
+			}
+
+			if (!deleteList.isEmpty()) {
+				if (deleteMap.containsKey(tblId)) {
+					deleteMap.get(tblId).addAll(deleteList);
+				} else {
+					deleteMap.put(tblId, deleteList);
+				}
 			}
 			log.debug("parse list data finished, used {} ms.", System.currentTimeMillis() - parseListStart);
 		}
 
 		if (!unExistTable.isEmpty()) {
-			boolean ret = ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
+			ServerStatusReportUtil.reportAlarm(agentSvrName, agentSvrGroup, agentSvrType, 1, 4,
 					"Kudu表不存在或者未加载成功，数据被忽略，tableList:" + unExistTable);
 		}
 
 		log.error("parse kafka data finished size:{}, used {} ms.", tmpCnt, System.currentTimeMillis() - start);
-		doCommit(session, upsertsMap, deletesMap);
+
+		doCommit(session, insertMap, upsertMap, deleteMap);
 
 		return true;
 	}
@@ -314,13 +348,13 @@ public class KuduHandler implements Handler {
 
 		if (data instanceof Number)
 			return TypeUtils.castToBigDecimal(data);
-		
+
 		if (data == null || "".equals(data.toString().trim())) {
 			return null;
 		}
-		
+
 		return new BigDecimal(data.toString().trim());
-//		return TypeUtils.castToBigDecimal(data);
+		// return TypeUtils.castToBigDecimal(data);
 	}
 
 	private static Long castToLong(Object date) {
@@ -342,46 +376,66 @@ public class KuduHandler implements Handler {
 	 * 提交数据到Kudu中
 	 * 
 	 * @param session
-	 * @param upsertsMap
-	 * @param deletesMap
+	 * @param insertMap
+	 * @param upsertMap
+	 * @param deleteMap
 	 * @throws KuduException
 	 */
-	private void doCommit(KuduSession session, Map<String, List<Upsert>> upsertsMap,
-			Map<String, List<Delete>> deletesMap) throws KuduException {
+	private void doCommit(KuduSession session, Map<String, List<Operation>> insertMap,
+			Map<String, List<Operation>> upsertMap, Map<String, List<Operation>> deleteMap) throws KuduException {
 
-		if (upsertsMap.isEmpty() && deletesMap.isEmpty())
-			return;
-
+		long start = 0;
 		try {
-			long start = System.currentTimeMillis();
-			for (Entry<String, List<Upsert>> entry : upsertsMap.entrySet()) {
-				int cnt = 0;
-				log.error("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
-				for (Upsert upsert : entry.getValue()) {
-					session.apply(upsert);
-					if(cnt >= OPERATION_BATCH) {
-						session.flush();
-						cnt = 0;
+			if (!insertMap.isEmpty()) {
+				start = System.currentTimeMillis();
+				for (Entry<String, List<Operation>> entry : insertMap.entrySet()) {
+					int cnt = 0;
+					log.error("start insert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
+					for (Operation option : entry.getValue()) {
+						session.apply(option);
+						if (cnt >= OPERATION_BATCH) {
+							session.flush();
+							cnt = 0;
+						}
+						cnt++;
 					}
-					cnt ++;
 				}
+				log.error("commit insert batch used {} ms.", System.currentTimeMillis() - start);
 			}
-			log.error("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
 
-			start = System.currentTimeMillis();
-			for (Entry<String, List<Delete>> entry : deletesMap.entrySet()) {
-				int cnt = 0;
-				log.error("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
-				for (Delete delete : entry.getValue()) {
-					session.apply(delete);
-					if(cnt >= OPERATION_BATCH) {
-						session.flush();
-						cnt = 0;
+			if (!upsertMap.isEmpty()) {
+				start = System.currentTimeMillis();
+				for (Entry<String, List<Operation>> entry : upsertMap.entrySet()) {
+					int cnt = 0;
+					log.error("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
+					for (Operation option : entry.getValue()) {
+						session.apply(option);
+						if (cnt >= OPERATION_BATCH) {
+							session.flush();
+							cnt = 0;
+						}
+						cnt++;
 					}
-					cnt ++;
 				}
+				log.error("commit upsert batch used {} ms.", System.currentTimeMillis() - start);
 			}
-			log.error("commit delete batch used {} ms.", System.currentTimeMillis() - start);
+
+			if (!deleteMap.isEmpty()) {
+				start = System.currentTimeMillis();
+				for (Entry<String, List<Operation>> entry : deleteMap.entrySet()) {
+					int cnt = 0;
+					log.error("start delete table {} data, size -> {}", entry.getKey(), entry.getValue().size());
+					for (Operation option : entry.getValue()) {
+						session.apply(option);
+						if (cnt >= OPERATION_BATCH) {
+							session.flush();
+							cnt = 0;
+						}
+						cnt++;
+					}
+				}
+				log.error("commit delete batch used {} ms.", System.currentTimeMillis() - start);
+			}
 
 		} finally {
 			session.flush();
