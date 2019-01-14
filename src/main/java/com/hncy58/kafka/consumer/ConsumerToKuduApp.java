@@ -92,7 +92,7 @@ public class ConsumerToKuduApp {
 			@Override
 			public void run() {
 				log.warn("开始运行进程退出钩子函数。");
-				int maxCnt = 10;
+				int maxCnt = 60;
 				int cnt = 0;
 				while (!app.getDownSignal()) {
 					try {
@@ -364,9 +364,11 @@ public class ConsumerToKuduApp {
 
 		int offsetCommitRetryCnt = 0;
 		boolean success = false;
+		long start = System.currentTimeMillis();
 		while (!success && offsetCommitRetryCnt < maxOffsetCommitRetryCnt) {
 			try {
 				getHandler().handle(buffer);
+				log.error("handle data used {} ms.", System.currentTimeMillis() - start);
 				success = true;
 			} catch (Exception e) {
 				log.error("处理数据异常，重试次数：" + offsetCommitRetryCnt + "，错误信息：" + e.getMessage(), e);
@@ -379,7 +381,9 @@ public class ConsumerToKuduApp {
 		if (!success)
 			ERR_HANDLED_CNT += 1;
 
+		start = System.currentTimeMillis();
 		boolean cmtSuccess = commitOffsets();
+		log.error("commit offsets used {} ms.", System.currentTimeMillis() - start);
 		// 如果重试N次还是失败且偏移量提交成功，则记录到本地文件，然后发送告警信息到监控服务
 		// 如果重试N次提交偏移量还是失败，则记录到本地文件，然后发送告警信息到监控服务
 		if (!success && cmtSuccess) {

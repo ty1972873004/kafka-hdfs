@@ -53,6 +53,7 @@ public class KuduHandler implements Handler {
 	private static final Logger log = LoggerFactory.getLogger(KuduHandler.class);
 	private SessionConfiguration.FlushMode FLUSH_MODE = SessionConfiguration.FlushMode.MANUAL_FLUSH;
 	private final static int OPERATION_BATCH = 1000000;
+	private final static int MAX_BATCH = 20000;
 
 	private String agentSvrName;
 	private String agentSvrGroup;
@@ -107,7 +108,10 @@ public class KuduHandler implements Handler {
 			log.error("start to load {}'s schema.", tableName);
 			Schema kuduSchema = client.openTable(tableName).getSchema();
 			kuduTableSchemas.put(tableName, kuduSchema);
+			log.error("load {}'s schema finished. kuduSchema -> {}", tableName, kuduSchema);
 		}
+		
+		
 	}
 
 	@Override
@@ -188,7 +192,7 @@ public class KuduHandler implements Handler {
 			if (kudutables.containsKey(tblId)) {
 				table = kudutables.get(tblId);
 			} else {
-				log.info("add new kudu table instance to kudutables cache.");
+				log.info("add new kudu {} table instance to kudutables cache.", tblId);
 				table = client.openTable(tblId);
 				kudutables.put(tblId, table);
 			}
@@ -219,22 +223,27 @@ public class KuduHandler implements Handler {
 				PartialRow row = null;
 				int delStatus = -1;
 
-				if ("i".equals(oprType)) {
+				switch (oprType) {
+				case "i":
 					delStatus = 0;
 					option = table.newUpsert();
 					insertList.add(option);
-				} else if ("u".equals(oprType)) {
+					break;
+				case "u":
 					delStatus = 2;
 					option = table.newUpsert();
 					upsertList.add(option);
-				} else if ("d".equals(oprType)) {
+					break;
+				case "d":
 					option = table.newUpsert();
 					delStatus = 1;
 					deleteList.add(option);
-				} else {
+					break;
+				default:
 					log.error("not correct oprType:{}", oprType);
+					break;
 				}
-
+				
 				row = option.getRow();
 
 				try {
@@ -249,58 +258,15 @@ public class KuduHandler implements Handler {
 					try {
 						colSchema = kuduSchema.getColumn(entry.getKey().toLowerCase());
 					} catch (Exception e) {
-						log.warn(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage());
+						log.debug(tblId + "表没有字段:" + entry.getKey() + "," + e.getMessage());
 						continue;
 					}
 					if (entry.getValue() == null) {
 						row.setNull(entry.getKey().toLowerCase());
 						continue;
 					}
-					// if (entry.getValue() == null ||
-					// (Utils.isEmpty(entry.getValue())
-					// && ignoredTypes.contains(colSchema.getType()))) {
-					// row.setNull(entry.getKey().toLowerCase());
-					// continue;
-					// }
 
-					switch (colSchema.getType()) {
-					case BINARY:
-						row.addBinary(entry.getKey().toLowerCase(), TypeUtils.castToBytes(entry.getValue()));
-						break;
-					case BOOL:
-						row.addBoolean(entry.getKey().toLowerCase(), TypeUtils.castToBoolean(entry.getValue()));
-						break;
-					case DOUBLE:
-						row.addDouble(entry.getKey().toLowerCase(), TypeUtils.castToDouble(entry.getValue()));
-						break;
-					case FLOAT:
-						row.addFloat(entry.getKey().toLowerCase(), TypeUtils.castToFloat(entry.getValue()));
-						break;
-					case INT8:
-						row.addByte(entry.getKey().toLowerCase(), TypeUtils.castToByte(entry.getValue()));
-						break;
-					case INT16:
-						row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
-						break;
-					case INT32:
-						row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
-						break;
-					case INT64:
-						row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
-						break;
-					case DECIMAL: // kudu-1.7.0以后版本支持此数据格式
-						row.addDecimal(entry.getKey().toLowerCase(),
-								castToDecimal(entry.getValue(), colSchema.getTypeAttributes()));
-						break;
-					case STRING:
-						row.addString(entry.getKey().toLowerCase(), TypeUtils.castToString(entry.getValue()));
-						break;
-					case UNIXTIME_MICROS:
-						row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
-						break;
-					default:
-						break;
-					}
+					fillRow(colSchema, row, entry);
 				}
 
 				++tmpCnt;
@@ -343,6 +309,47 @@ public class KuduHandler implements Handler {
 
 		return true;
 	}
+
+	private void fillRow(ColumnSchema colSchema, PartialRow row, Entry<String, Object> entry) {
+		
+		switch (colSchema.getType()) {
+		case BINARY:
+			row.addBinary(entry.getKey().toLowerCase(), TypeUtils.castToBytes(entry.getValue()));
+			break;
+		case BOOL:
+			row.addBoolean(entry.getKey().toLowerCase(), TypeUtils.castToBoolean(entry.getValue()));
+			break;
+		case DOUBLE:
+			row.addDouble(entry.getKey().toLowerCase(), TypeUtils.castToDouble(entry.getValue()));
+			break;
+		case FLOAT:
+			row.addFloat(entry.getKey().toLowerCase(), TypeUtils.castToFloat(entry.getValue()));
+			break;
+		case INT8:
+			row.addByte(entry.getKey().toLowerCase(), TypeUtils.castToByte(entry.getValue()));
+			break;
+		case INT16:
+			row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
+			break;
+		case INT32:
+			row.addInt(entry.getKey().toLowerCase(), TypeUtils.castToInt(entry.getValue()));
+			break;
+		case INT64:
+			row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
+			break;
+		case DECIMAL: // kudu-1.7.0以后版本支持此数据格式
+			row.addDecimal(entry.getKey().toLowerCase(),
+					castToDecimal(entry.getValue(), colSchema.getTypeAttributes()));
+			break;
+		case STRING:
+			row.addString(entry.getKey().toLowerCase(), TypeUtils.castToString(entry.getValue()));
+			break;
+		case UNIXTIME_MICROS:
+			row.addLong(entry.getKey().toLowerCase(), castToLong(entry.getValue()));
+			break;
+		default:
+			break;
+		}}
 
 	private BigDecimal castToDecimal(Object data, ColumnTypeAttributes typeAttributes) {
 
@@ -393,7 +400,7 @@ public class KuduHandler implements Handler {
 					log.error("start insert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 					for (Operation option : entry.getValue()) {
 						session.apply(option);
-						if (cnt >= OPERATION_BATCH) {
+						if (cnt >= MAX_BATCH) {
 							session.flush();
 							cnt = 0;
 						}
@@ -410,7 +417,7 @@ public class KuduHandler implements Handler {
 					log.error("start upsert table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 					for (Operation option : entry.getValue()) {
 						session.apply(option);
-						if (cnt >= OPERATION_BATCH) {
+						if (cnt >= MAX_BATCH) {
 							session.flush();
 							cnt = 0;
 						}
@@ -427,7 +434,7 @@ public class KuduHandler implements Handler {
 					log.error("start delete table {} data, size -> {}", entry.getKey(), entry.getValue().size());
 					for (Operation option : entry.getValue()) {
 						session.apply(option);
-						if (cnt >= OPERATION_BATCH) {
+						if (cnt >= MAX_BATCH) {
 							session.flush();
 							cnt = 0;
 						}
@@ -439,10 +446,13 @@ public class KuduHandler implements Handler {
 
 		} finally {
 			session.flush();
+			log.error("batch data all commited.");
 			if (session != null && !session.isClosed()) {
 				session.close();
+				log.error("close session finished.");
 			}
 		}
+
 	}
 
 	@Override
