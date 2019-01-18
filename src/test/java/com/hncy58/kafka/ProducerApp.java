@@ -15,15 +15,15 @@ import org.apache.kafka.common.errors.ProducerFencedException;
 
 public class ProducerApp {
 
-	private static int SEND_BATCH_SIZE = 5;
-	private static int SEND_BATCH_CNT = 200;
+	private static int SEND_BATCH_SIZE = 5000;
+	private static int SEND_BATCH_CNT = 20;
 	private static int SEND_BATCH_INTERVAL = 1;
 
 	public static final String[] ALPHA_ARR = new String[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b",
 			"c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w",
 			"x", "y", "z" };
-	public static String TOPIC_NAME = "test-topic-3";
-	public static String KAFKA_SERVERS = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
+	public static String TOPIC_NAME = "test-topic-1";
+	public static String KAFKA_SERVERS = "node01:9092";
 
 	public static boolean USE_TRANSACTION = false;
 

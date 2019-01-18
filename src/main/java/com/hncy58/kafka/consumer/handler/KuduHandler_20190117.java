@@ -48,11 +48,12 @@ import com.hncy58.util.Utils;
  * @date 2018年11月6日 下午5:48:34
  *
  */
-public class KuduHandler implements Handler {
+public class KuduHandler_20190117 implements Handler {
 
-	private static final Logger log = LoggerFactory.getLogger(KuduHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(KuduHandler_20190117.class);
 	private SessionConfiguration.FlushMode FLUSH_MODE = SessionConfiguration.FlushMode.MANUAL_FLUSH;
 	private final static int OPERATION_BATCH = 15000;
+	private static final int flushInterval = 200;
 	private static final long defaultOperationTimeoutMs = 0;
 	private static final long defaultSessionTimeoutMs = 600000;
 	private static final long defaultSocketReadTimeoutMs = 600000;
@@ -72,7 +73,7 @@ public class KuduHandler implements Handler {
 
 	private Map<String, Schema> kuduTableSchemas = new HashMap<>();
 
-	public KuduHandler(String agentSvrName, String agentSvrGroup, int agentSvrType, String kuduMaster,
+	public KuduHandler_20190117(String agentSvrName, String agentSvrGroup, int agentSvrType, String kuduMaster,
 			String localFileNamePrefix, String tblPrefix) throws Exception {
 		super();
 		this.agentSvrName = agentSvrName;
@@ -150,7 +151,7 @@ public class KuduHandler implements Handler {
 		for (ConsumerRecord<String, String> r : data) {
 			value = r.value();
 			// for debug
-			log.info("received data -> {}", value);
+			log.error("received data -> {}", value);
 			
 			if (StringUtils.isEmpty(value)) {
 				log.error("data value is null, ignored, record:{}", r);
@@ -505,9 +506,8 @@ public class KuduHandler implements Handler {
 			}
 
 		} finally {
-			start = System.currentTimeMillis();
 			session.flush();
-			log.error("batch data all commited. finally flush opts used {} ms.", System.currentTimeMillis() - start);
+			log.error("batch data all commited.");
 			if (session != null && !session.isClosed()) {
 				session.close();
 				log.error("close session finished.");
