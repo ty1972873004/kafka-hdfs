@@ -182,7 +182,8 @@ public class KuduHandler implements Handler {
 
 			if (!kuduTableSchemas.containsKey(tblId)) {
 				unExistTable.add(tblId);
-				log.error("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略 ,data:\n{}", tblId, value);
+//				log.debug("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略 ,data:\n{}", tblId, value);
+				log.warn("Kudu表:{}对应Schema不存在或者未加载成功，数据被忽略", tblId);
 				continue;
 			}
 
