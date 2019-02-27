@@ -1,6 +1,7 @@
 package com.hncy58.kafka.producer;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +23,8 @@ import com.alibaba.fastjson.JSONObject;
 
 public class JsonDataProducerApp {
 
-	private static int SEND_BATCH_SIZE = 5;
-	private static int SEND_BATCH_CNT = 2;
+	private static int SEND_BATCH_SIZE = 5000;
+	private static int SEND_BATCH_CNT = 20;
 	private static int SEND_BATCH_INTERVAL = 1;
 
 	public static final String[] ALPHA_ARR = new String[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b",
@@ -31,12 +32,12 @@ public class JsonDataProducerApp {
 			"x", "y", "z" };
 
 	public static final String[] DB_ID_ARR = new String[] {"test"};
-	public static final String[] TBL_ID_ARR = new String[] { "customer", "account", "order"};
+	public static final String[] TBL_ID_ARR = new String[] { "ccs_customer", "ccs_acct", "ccs_order"};
 	public static final String[] OPR_TYPE_ARR = new String[] { "i", "u", "d" };
 
-	public static String TOPIC_NAME = "test-topic-1";
+	public static String TOPIC_NAME = "sit_sync_prodccsdb_0";
 //	public static String KAFKA_SERVERS = "192.168.144.128:9092";
-	public static String KAFKA_SERVERS = "bigdata-node01:9092,bigdata-node02:9092,bigdata-node03:9092";
+	public static String KAFKA_SERVERS = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
 
 	public static boolean USE_TRANSACTION = true;
 
@@ -98,12 +99,19 @@ public class JsonDataProducerApp {
 					schema.put("agt_svr_nm", "canal_01");
 					schema.put("db_id", DB_ID_ARR[random.nextInt(DB_ID_ARR.length)]);
 //					schema.put("tbl_id", TBL_ID_ARR[random.nextInt(TBL_ID_ARR.length)]);
-					schema.put("tbl_id", "account");
-					schema.put("opr_type", OPR_TYPE_ARR[random.nextInt(OPR_TYPE_ARR.length)]);
-					schema.put("pk_col", "id");
+					schema.put("tbl_id", "ccs_order");
+//					schema.put("opr_type", OPR_TYPE_ARR[random.nextInt(OPR_TYPE_ARR.length)]);
+					schema.put("opr_type", "d");
+					schema.put("pk_col", "ORDER_ID");
 
 					Map<String, Object> valueMap = new HashMap<>();
-					valueMap.put("id", random.nextInt(100000));
+					valueMap.put("ORDER_ID", 10000000 + Integer.parseInt(key));
+					valueMap.put("ORDER_TIME", new Date());
+					valueMap.put("ORBER_FAIL_TIME", new Date());
+					valueMap.put("OPT_DATETIME", new Date());
+					valueMap.put("CREATE_TIME", new Date());
+					valueMap.put("LST_UPD_TIME", new Date());
+					valueMap.put("ORG", random.nextInt(100000));
 					valueMap.put("name", "name" + random.nextInt(100000));
 					valueMap.put("cert_id", "43052119890625" + random.nextInt(10000));
 					valueMap.put("gender", random.nextInt(2));

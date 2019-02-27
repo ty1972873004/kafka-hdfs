@@ -17,7 +17,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Deprecated
+//@Deprecated
 public class DataSourceUtil {
 
 	private static final Logger log = LoggerFactory.getLogger(DSPoolUtil.class);
@@ -26,10 +26,20 @@ public class DataSourceUtil {
 	private DataSource dataSource = null;
 	private boolean inited = false;
 
+	public DataSourceUtil() {
+		super();
+	}
+
+	public DataSourceUtil(String connectURI, String username, String password, String driverClass, int initialSize,
+			int maxTotal, int maxIdle, int maxWaitMillis) {
+		super();
+		initDataSource(connectURI, username, password, driverClass, initialSize, maxTotal, maxIdle, maxWaitMillis);
+	}
+
 	// 使用DBCP提供的BasicDataSource实现DataSource接口
-	public void initDataSource(String connectURI, String username, String password, String driverClass,
-			int initialSize, int maxTotal, int maxIdle, int maxWaitMillis) {
-		synchronized (DataSourceUtil.class) {
+	public void initDataSource(String connectURI, String username, String password, String driverClass, int initialSize,
+			int maxTotal, int maxIdle, int maxWaitMillis) {
+		synchronized (this) {
 			BasicDataSource ds = new BasicDataSource();
 			ds.setDriverClassName(driverClass);
 			ds.setUsername(username);
@@ -46,11 +56,11 @@ public class DataSourceUtil {
 
 	// 获得连接对象
 	public Connection getConnection() throws SQLException {
-		
-		if(! inited) {
+
+		if (!inited) {
 			throw new SQLException("数据库未初始化！");
 		}
-		
+
 		Connection conn = null;
 		try {
 			conn = dataSource.getConnection();
@@ -98,7 +108,7 @@ public class DataSourceUtil {
 		PreparedStatement ps = con.prepareStatement(sql);
 		con.setAutoCommit(false);
 
-		for(List<Object> params : paramsList) {
+		for (List<Object> params : paramsList) {
 			if (params != null) {
 				for (int i = 0; i < params.size(); i++) {
 					ps.setObject(i + 1, params.get(i));
@@ -106,7 +116,7 @@ public class DataSourceUtil {
 			}
 			ps.addBatch();
 		}
-		
+
 		int[] ret = null;
 		try {
 			ret = ps.executeBatch();
@@ -132,7 +142,7 @@ public class DataSourceUtil {
 		}
 
 		int ret = 0;
-		
+
 		try {
 			ret = ps.executeUpdate();
 		} finally {
