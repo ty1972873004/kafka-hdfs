@@ -10,6 +10,8 @@ import java.util.Random;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -20,6 +22,7 @@ import org.apache.kafka.common.errors.OutOfOrderSequenceException;
 import org.apache.kafka.common.errors.ProducerFencedException;
 
 import com.alibaba.fastjson.JSONObject;
+import com.cloudera.io.netty.util.internal.StringUtil;
 
 public class JsonDataProducerApp {
 
@@ -36,10 +39,10 @@ public class JsonDataProducerApp {
 	public static final String[] OPR_TYPE_ARR = new String[] { "i", "u", "d" };
 
 	public static String TOPIC_NAME = "sit_sync_prodccsdb_0";
-//	public static String KAFKA_SERVERS = "192.168.144.128:9092";
-	public static String KAFKA_SERVERS = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
+	public static String KAFKA_SERVERS = "192.168.144.128:9092";
+//	public static String KAFKA_SERVERS = "162.16.6.180:9092,162.16.6.181:9092,162.16.6.182:9092";
 
-	public static boolean USE_TRANSACTION = true;
+	public static boolean USE_TRANSACTION = false;
 
 	private static Producer<String, String> producer;
 
@@ -83,6 +86,8 @@ public class JsonDataProducerApp {
 
 		Random random = new Random();
 
+		long cur_time = System.currentTimeMillis();
+		
 		while (SEND_BATCH_CNT > 0) {
 			try {
 				if (USE_TRANSACTION) {
@@ -90,22 +95,28 @@ public class JsonDataProducerApp {
 					producer.beginTransaction();
 				}
 				for (int k = 0; k < SEND_BATCH_SIZE; k++) {
-					String key = Integer.toString(SEND_BATCH_CNT * SEND_BATCH_SIZE + k);
+					String key = Long.toString(cur_time - (SEND_BATCH_CNT * SEND_BATCH_SIZE + k));
+					
+//					key = getHashPrefix(key, 12, 3) + key;
+					
+//					System.out.println(key);
+					
 					JSONObject json = new JSONObject(true);
 					Map<String, Object> schema = new HashMap<>();
 					List<Map<String, Object>> data = new ArrayList<>();
 					schema.put("offset", key);
 					schema.put("time", System.currentTimeMillis());
 					schema.put("agt_svr_nm", "canal_01");
-					schema.put("db_id", DB_ID_ARR[random.nextInt(DB_ID_ARR.length)]);
+//					schema.put("db_id", DB_ID_ARR[random.nextInt(DB_ID_ARR.length)]);
+					schema.put("db_id", "");
 //					schema.put("tbl_id", TBL_ID_ARR[random.nextInt(TBL_ID_ARR.length)]);
 					schema.put("tbl_id", "ccs_order");
 //					schema.put("opr_type", OPR_TYPE_ARR[random.nextInt(OPR_TYPE_ARR.length)]);
-					schema.put("opr_type", "d");
+					schema.put("opr_type", "i");
 					schema.put("pk_col", "ORDER_ID");
 
 					Map<String, Object> valueMap = new HashMap<>();
-					valueMap.put("ORDER_ID", 10000000 + Integer.parseInt(key));
+					valueMap.put("ORDER_ID", key);
 					valueMap.put("ORDER_TIME", new Date());
 					valueMap.put("ORBER_FAIL_TIME", new Date());
 					valueMap.put("OPT_DATETIME", new Date());
@@ -161,6 +172,12 @@ public class JsonDataProducerApp {
 		// 将缓存的信息提交
 		producer.flush();
 		producer.close(10, TimeUnit.SECONDS);
+	}
+
+	private static String getHashPrefix(String key, int partitions, int length) {
+		String tmp = "" + key.hashCode() % partitions; 
+		tmp = StringUtils.repeat("0", length - tmp.length()) + tmp;
+		return tmp;
 	}
 
 	private static Producer<String, String> buildUnTransactionProducer() {
