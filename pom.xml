@@ -28,12 +28,12 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<junit.version>4.12</junit.version>
 		<java.version>1.8</java.version>
-		<cdh.version>cdh5.15.1</cdh.version>
-		<kudu.version>1.7.0</kudu.version>
-		<hbase.version>1.2.0</hbase.version>
-		<hadoop.version>2.6.0</hadoop.version>
-		<kafka.version>1.0.1-kafka-3.1.0</kafka.version>
-<!-- 		<kafka.version>0.11.0-kafka-3.0.0</kafka.version> -->
+		<cdh.version>cdh6.1.0</cdh.version>
+		<kudu.version>1.8.0</kudu.version>
+		<hbase.version>2.1.0</hbase.version>
+		<hive.version>2.1.1</hive.version>
+		<hadoop.version>3.0.0</hadoop.version>
+		<kafka.version>2.0.0</kafka.version>
 		<mysql.version>5.1.38</mysql.version>
 		<commons.pool2.version>2.4.2</commons.pool2.version>
 		<commons.dbcp2.version>2.5.0</commons.dbcp2.version>
@@ -48,15 +48,23 @@
 		</dependency>
 
 		<dependency>
+			<groupId>jdk.tools</groupId>
+			<artifactId>jdk.tools</artifactId>
+			<version>1.7</version>
+			<scope>system</scope>
+			<systemPath>${JAVA_HOME}/lib/tools.jar</systemPath>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.11</artifactId>
-			<version>${kafka.version}</version>
+			<version>${kafka.version}-${cdh.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
-			<version>${kafka.version}</version>
+			<version>${kafka.version}-${cdh.version}</version>
 		</dependency>
 
 		<dependency>
@@ -123,32 +131,67 @@
 		<dependency>
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-cli</artifactId>
-			<version>1.1.0-${cdh.version}</version>
+			<version>${hive.version}-${cdh.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-jdbc</artifactId>
-			<version>1.1.0-${cdh.version}</version>
+			<version>${hive.version}-${cdh.version}</version>
 		</dependency>
 
 	</dependencies>
 
 	<repositories>
 		<repository>
-			<id>cloudera</id>
-			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
+			<id>cdh.repo</id>
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+			<name>Cloudera Repositories</name>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>cdh.snapshots.repo</id>
+			<url>https://repository.cloudera.com/artifactory/libs-snapshot-local</url>
+			<name>Cloudera Snapshots Repository</name>
 			<snapshots>
 				<enabled>true</enabled>
 			</snapshots>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+		</repository>
+		<repository>
+			<id>central-repos</id>
+			<name>Central Repository</name>
+			<url>http://central.maven.org/maven2/</url>
+		</repository>
+		<repository>
+			<id>central-repos1</id>
+			<name>Central Repository 1</name>
+			<url>http://repo1.maven.org/maven2/</url>
 		</repository>
 		<repository>
 			<id>aliyun-repos</id>
 			<name>aliyun Releases</name>
 			<url>http://maven.aliyun.com/nexus/content/groups/public/</url>
 		</repository>
+		<repository>
+			<id>cloudbees netty release</id>
+			<url>https://maven.java.net/content/repositories/releases/</url>
+		</repository>
+		<repository>
+			<id>apache release</id>
+			<url>https://repository.apache.org/content/repositories/releases/</url>
+		</repository>
+		<!-- <repository> -->
+		<!-- <id>cloudbees netty snapshot</id> -->
+		<!-- <url>http://repository-netty.forge.cloudbees.com/snapshot/</url> -->
+		<!-- </repository> -->
+		<!-- <repository> -->
+		<!-- <id>cloudbees netty releases</id> -->
+		<!-- <url>http://repository-netty.forge.cloudbees.com/releases/</url> -->
+		<!-- </repository> -->
 	</repositories>
 
 
@@ -228,12 +271,8 @@
 								<resource>
 									<directory>src/main/resources/${package.environment}</directory>
 									<filtering>true</filtering>
-									<!-- 
-									<excludes>
-										<exclude>**/*.properties</exclude>
-										<exclude>**/*.xml</exclude>
-									</excludes>
-									 -->
+									<!-- <excludes> <exclude>**/*.properties</exclude> <exclude>**/*.xml</exclude> 
+										</excludes> -->
 								</resource>
 							</resources>
 						</configuration>

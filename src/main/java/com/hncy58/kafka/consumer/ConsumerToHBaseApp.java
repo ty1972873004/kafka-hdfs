@@ -1,6 +1,7 @@
 package com.hncy58.kafka.consumer;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,7 +44,8 @@ public class ConsumerToHBaseApp {
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "fetchMiliseconds", "1000"));
 	private static int sleepSeconds = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "sleepSeconds", "5"));
 	private static int minBatchSize = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "minBatchSize", "5000"));
-	private static int minSleepCnt = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "minSleepCnt", "5"));
+	private static int minSleepCnt = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "minSleepCnt", "20"));
+	private static int noDataMaxSleepCnt = Integer.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "noDataMaxSleepCnt", "5"));
 	private static int maxOffsetCommitRetryCnt = Integer
 			.parseInt(PropsUtil.getWithDefault(PROP_PREFIX, "maxOffsetCommitRetryCnt", "3"));
 	private static int offsetCommitRetryInterval = Integer
@@ -126,6 +128,7 @@ public class ConsumerToHBaseApp {
 		try {
 			List<ConsumerRecord<String, String>> buffer = new ArrayList<>();
 			int sleepdCnt = 0;
+			int noDataSleepdCnt = 0;
 
 			while (run) {
 				try {
@@ -161,7 +164,7 @@ public class ConsumerToHBaseApp {
 							System.exit(1);
 						}
 					} else {
-						ConsumerRecords<String, String> records = consumer.poll(fetchMiliseconds);
+						ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(fetchMiliseconds));
 						int cnt = records.count();
 						if (cnt > 0) {
 							log.info("current polled " + cnt + " records.");
@@ -173,22 +176,24 @@ public class ConsumerToHBaseApp {
 
 							if (buffer.size() >= minBatchSize || (sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
 								sleepdCnt = 0;
+								noDataSleepdCnt = 0;
 								doHandle(buffer);
 								buffer.clear();
-								Thread.sleep(500); //
+//								Thread.sleep(500); //
 							} else {
 								log.info("current buffer remains " + buffer.size() + " records.");
 								sleepdCnt += 1;
 							}
 						} else {
 							log.info("no data to poll, sleep " + sleepSeconds + " s. buff size:" + buffer.size());
-							if ((sleepdCnt >= minSleepCnt && !buffer.isEmpty())) {
+							if ((noDataSleepdCnt >= noDataMaxSleepCnt && !buffer.isEmpty())) {
 								sleepdCnt = 0;
+								noDataSleepdCnt = 0;
 								doHandle(buffer);
 								buffer.clear();
 							} else {
 								Thread.sleep(sleepSeconds * 1000);
-								sleepdCnt += 1;
+								noDataSleepdCnt += 1;
 							}
 						}
 
@@ -279,6 +284,10 @@ public class ConsumerToHBaseApp {
 
 			if (args.length > 7) {
 				sleepSeconds = Integer.parseInt(args[7].trim());
+			}
+			
+			if (args.length > 8) {
+				noDataMaxSleepCnt = Integer.parseInt(args[8].trim());
 			}
 
 			props.put("bootstrap.servers", kafkaServers);

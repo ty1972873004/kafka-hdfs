@@ -59,7 +59,7 @@ public class HBaseHandler implements Handler {
 		Map<String, List<Delete>> deletePutsMap = new HashMap<>();
 		long start = System.currentTimeMillis();
 		long allStart = System.currentTimeMillis();
-		
+
 		data.forEach(r -> {
 			String value = r.value();
 			if (StringUtils.isEmpty(value)) {
@@ -110,23 +110,24 @@ public class HBaseHandler implements Handler {
 						log.warn("data child is not correct json :{}", dataObj);
 						return;
 					}
-					
+
 					StringBuffer idBuf = new StringBuffer("");
-					for(String id : rowKeys) {
+					for (String id : rowKeys) {
 						idBuf.append("_" + dataJson.getString(id));
 					}
-					
-					if(idBuf.length() > 0) {
+
+					if (idBuf.length() > 0) {
 						Put put = new Put(Bytes.toBytes(idBuf.delete(0, 1).toString()), r.timestamp());
 						put.addColumn(cfBytes, Bytes.toBytes("ts"), Bytes.toBytes(schema.getString("time")));
 						put.addColumn(cfBytes, Bytes.toBytes("offset"), Bytes.toBytes(schema.getString("offset")));
-						put.addColumn(cfBytes, Bytes.toBytes("time"), Bytes.toBytes(schema.getString("time")));
-						
+						put.addColumn(cfBytes, Bytes.toBytes("syncOprType"), Bytes.toBytes(oprType));
+						// put.addColumn(cfBytes, Bytes.toBytes("time"), Bytes.toBytes(schema.getString("time")));
+
 						dataJson.entrySet().forEach(entry -> {
 							put.addColumn(cfBytes, Bytes.toBytes(entry.getKey()),
 									Bytes.toBytes(entry.getValue().toString()));
 						});
-						
+
 						listPut.add(put);
 					}
 				});
@@ -139,8 +140,23 @@ public class HBaseHandler implements Handler {
 			} else if ("d".equals(oprType)) {
 				List<Delete> listDelete = new ArrayList<Delete>();
 				jsonData.forEach(dataObj -> {
-					Delete delete = new Delete(Bytes.toBytes(r.key()), r.timestamp());
-					listDelete.add(delete);
+					JSONObject dataJson = null;
+					if (dataObj instanceof JSONObject) {
+						dataJson = (JSONObject) dataObj;
+					} else {
+						log.warn("data child is not correct json :{}", dataObj);
+						return;
+					}
+
+					StringBuffer idBuf = new StringBuffer("");
+					for (String id : rowKeys) {
+						idBuf.append("_" + dataJson.getString(id));
+					}
+
+					if (idBuf.length() > 0) {
+						Delete delete = new Delete(Bytes.toBytes(idBuf.delete(0, 1).toString()), r.timestamp());
+						listDelete.add(delete);
+					}
 				});
 
 				if (deletePutsMap.containsKey(mapKey)) {
@@ -150,13 +166,13 @@ public class HBaseHandler implements Handler {
 				}
 			}
 		});
-		
-		log.error("parse all data size {}, used {} ms.", insertPutsMap.size() + deletePutsMap.size(), System.currentTimeMillis() - start);
+
+		log.error("parse all data size {}, used {} ms.", insertPutsMap.size() + deletePutsMap.size(),
+				System.currentTimeMillis() - start);
 
 		if (insertPutsMap.isEmpty() && deletePutsMap.isEmpty())
 			return true;
 
-		
 		Configuration hbaseConf = HBaseConfiguration.create();
 		hbaseConf.set("hbase.zookeeper.quorum", getZkServers());
 		hbaseConf.set("hbase.zookeeper.property.clientPort", getZkPort());
@@ -177,7 +193,8 @@ public class HBaseHandler implements Handler {
 						table.close();
 					}
 				}
-				log.error("commit upsert size {}, used {} ms.", entry.getValue().size(), System.currentTimeMillis() - start);
+				log.error("commit upsert size {}, used {} ms.", entry.getValue().size(),
+						System.currentTimeMillis() - start);
 			}
 
 			for (Entry<String, List<Delete>> entry : deletePutsMap.entrySet()) {
@@ -199,9 +216,9 @@ public class HBaseHandler implements Handler {
 				hbaseConn.close();
 			}
 		}
-		
+
 		log.error("all data finished, used {} ms.", System.currentTimeMillis() - allStart);
-		
+
 		return true;
 	}
 
